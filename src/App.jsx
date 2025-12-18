@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, Activity } from 'lucide-react';
 
 // 시즌별 승점 데이터 (2010/11 ~ 2024/25)
 const rawData = [
@@ -42,7 +42,7 @@ const rankData = [
 
 const playersList = ["이지용", "임우람", "장용석", "장재윤", "전민호", "정세현", "정용우", "정재훈", "정창영", "천영석", "하원석", "한지상", "한상진"];
 
-// 클럽 정보 매핑 (수정 반영)
+// 클럽 정보 매핑
 const clubMapping = {
   "임우람": { name: "AC 밀란", color: "#fb090b", logo: "https://upload.wikimedia.org/wikipedia/commons/d/d0/Logo_of_AC_Milan.svg" },
   "장용석": { name: "맨체스터 시티", color: "#6caddf", logo: "https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg" },
@@ -75,7 +75,7 @@ const App = () => {
     }).filter(x => x !== null);
   }, []);
 
-  // 플레이어별 종합 명예의 전당 통계
+  // 플레이어별 종합 통계
   const playerHonors = useMemo(() => {
     return playersList.map(name => {
       const scores = rawData.map(d => d[name]).filter(s => typeof s === 'number');
@@ -95,7 +95,8 @@ const App = () => {
   const bestScorePlayer = [...playerHonors].sort((a, b) => b.maxScore - a.maxScore)[0] || { name: '-', maxScore: 0, maxScoreSeason: '-' };
   const bestRankPlayer = [...playerHonors].sort((a, b) => (a.bestRank || Infinity) - (b.bestRank || Infinity))[0] || { name: '-', bestRank: null, bestRankSeason: '-' };
 
-  const CustomDot = (props) => {
+  // Recharts를 위한 커스텀 닷 (점수용)
+  const ScoreCustomDot = (props) => {
     const { cx, cy, payload, dataKey, stroke } = props;
     if (!cx || !cy || !payload || !dataKey) return null;
     const currentScores = playersList.map(p => payload[p]).filter(v => typeof v === 'number');
@@ -116,6 +117,28 @@ const App = () => {
     );
   };
 
+  // Recharts를 위한 커스텀 닷 (순위용 - 낮을수록 좋음)
+  const RankCustomDot = (props) => {
+    const { cx, cy, payload, dataKey, stroke } = props;
+    if (!cx || !cy || !payload || !dataKey) return null;
+    const currentRanks = playersList.map(p => payload[p]).filter(v => typeof v === 'number');
+    const minVal = Math.min(...currentRanks);
+    const isBest = payload[dataKey] === minVal && payload[dataKey] > 0;
+    const isFocused = highlightedUser === null || highlightedUser === dataKey;
+
+    if (!isFocused || !payload[dataKey]) return null;
+    return (
+      <g>
+        {isBest && (
+          <foreignObject x={cx - 10} y={cy - 28} width="20" height="20">
+            <Crown size={18} fill="#FFD700" color="#B8860B" />
+          </foreignObject>
+        )}
+        <circle cx={cx} cy={cy} r={isBest ? 5 : 3} fill={stroke} stroke="#fff" strokeWidth={2} />
+      </g>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
       <header className="bg-[#3d195b] text-white p-6 shadow-xl sticky top-0 z-50">
@@ -125,7 +148,7 @@ const App = () => {
               <img src="https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg" alt="PL Logo" className="w-10 h-10 object-contain" />
             </div>
             <div>
-              <h1 className="text-3xl font-black italic tracking-tighter leading-none text-white">BAEKDOO FANTASY LEAGUE</h1>
+              <h1 className="text-3xl font-black italic tracking-tighter leading-none text-white uppercase">BAEKDOO FANTASY LEAGUE</h1>
               <p className="text-sm text-[#00ff85] font-bold mt-1 tracking-widest uppercase">History of 15 Seasons</p>
             </div>
           </div>
@@ -149,7 +172,7 @@ const App = () => {
       </header>
 
       <main className="max-w-7xl mx-auto p-4 md:p-8">
-        {/* 역대 우승자 탭 */}
+        {/* 역대 우승자 */}
         {activeTab === 'winners' && (
           <section className="animate-in fade-in slide-in-from-bottom-6 duration-700">
             <h2 className="text-2xl font-black mb-8 flex items-center gap-3 italic text-slate-800">
@@ -180,7 +203,7 @@ const App = () => {
           </section>
         )}
 
-        {/* 명예의 전당 탭 */}
+        {/* 명예의 전당 */}
         {activeTab === 'honors' && (
           <section className="animate-in fade-in slide-in-from-bottom-6 duration-700">
             <h2 className="text-2xl font-black mb-8 flex items-center gap-3 italic text-slate-800">
@@ -248,72 +271,119 @@ const App = () => {
           </section>
         )}
 
-        {/* 트렌드 분석 탭 */}
+        {/* 트렌드 분석 */}
         {activeTab === 'trend' && (
-          <section className="animate-in fade-in duration-700">
+          <section className="animate-in fade-in duration-700 space-y-8">
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
                 <div>
-                  <h2 className="text-2xl font-black flex items-center gap-3 italic text-slate-800">
-                    <TrendingUp className="text-[#0075ff] w-8 h-8" /> SEASONAL TRENDS
+                  <h2 className="text-2xl font-black flex items-center gap-3 italic text-slate-800 uppercase">
+                    <TrendingUp className="text-[#0075ff] w-8 h-8" /> 시즌별 성적 및 순위 추이
                   </h2>
-                  <p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider italic">이름을 클릭하여 그래프를 하이라이트 하세요 (왕관: 시즌 1위)</p>
+                  <p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider italic">이름을 클릭하여 전체 그래프를 하이라이트 하세요</p>
                 </div>
-                <div className="bg-slate-100 px-3 py-1.5 rounded-full text-[10px] font-black text-slate-500 flex items-center gap-1">
-                  <Crown size={12} fill="#FFD700" color="#B8860B" /> SEASON CHAMPION
+                <div className="flex gap-2">
+                  <div className="bg-slate-100 px-3 py-1.5 rounded-full text-[10px] font-black text-slate-500 flex items-center gap-1 uppercase tracking-widest">
+                    <Crown size={12} fill="#FFD700" color="#B8860B" /> Season Best
+                  </div>
                 </div>
               </div>
-              <div className="h-[480px] w-full mb-10">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={rawData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" />
-                    <YAxis domain={['auto', 'auto']} fontSize={10} fontWeight="900" stroke="#cbd5e1" />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)', padding: '20px' }}
-                      itemStyle={{ fontWeight: '900', fontSize: '12px', padding: '2px 0' }}
-                    />
-                    {playersList.map((name) => (
-                      <Line 
-                        key={name} 
-                        type="monotone" 
-                        dataKey={name} 
-                        stroke={getClub(name).color} 
-                        strokeWidth={highlightedUser === null || highlightedUser === name ? 5 : 1.5}
-                        strokeOpacity={highlightedUser === null || highlightedUser === name ? 1 : 0.08}
-                        dot={<CustomDot />}
-                        activeDot={{ r: 8, strokeWidth: 0 }}
-                        connectNulls
-                        animationDuration={1500}
+
+              {/* 1. 점수 추이 그래프 */}
+              <div className="mb-16">
+                <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2">
+                  <Award size={16} className="text-indigo-500" /> 1. 시즌 승점 추이 (Score Trend)
+                </h3>
+                <div className="h-[400px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={rawData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" />
+                      <YAxis domain={['auto', 'auto']} fontSize={10} fontWeight="900" stroke="#cbd5e1" />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)', padding: '20px' }}
+                        itemStyle={{ fontWeight: '900', fontSize: '12px', padding: '2px 0' }}
                       />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
+                      {playersList.map((name) => (
+                        <Line 
+                          key={name} 
+                          type="monotone" 
+                          dataKey={name} 
+                          stroke={getClub(name).color} 
+                          strokeWidth={highlightedUser === null || highlightedUser === name ? 5 : 1.5}
+                          strokeOpacity={highlightedUser === null || highlightedUser === name ? 1 : 0.08}
+                          dot={<ScoreCustomDot />}
+                          activeDot={{ r: 8, strokeWidth: 0 }}
+                          connectNulls
+                          animationDuration={1500}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-              <div className="flex flex-wrap justify-center gap-3 pt-10 border-t border-slate-50">
+
+              {/* 2. 세계 순위 추이 그래프 */}
+              <div>
+                <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2">
+                  <Globe size={16} className="text-blue-500" /> 2. 세계 순위 추이 (World Rank Trend - Lower is Better)
+                </h3>
+                <div className="h-[400px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={rankData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" />
+                      {/* 순위는 낮을수록 좋으므로 Y축을 반전시킵니다. */}
+                      <YAxis reversed domain={['auto', 'auto']} fontSize={10} fontWeight="900" stroke="#cbd5e1" />
+                      <Tooltip 
+                        formatter={(value) => value.toLocaleString()}
+                        contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)', padding: '20px' }}
+                        itemStyle={{ fontWeight: '900', fontSize: '12px', padding: '2px 0' }}
+                      />
+                      {playersList.map((name) => (
+                        <Line 
+                          key={name} 
+                          type="monotone" 
+                          dataKey={name} 
+                          stroke={getClub(name).color} 
+                          strokeWidth={highlightedUser === null || highlightedUser === name ? 5 : 1.5}
+                          strokeOpacity={highlightedUser === null || highlightedUser === name ? 1 : 0.08}
+                          dot={<RankCustomDot />}
+                          activeDot={{ r: 8, strokeWidth: 0 }}
+                          connectNulls
+                          animationDuration={1500}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* 플레이어 리스트 선택기 (하단) */}
+              <div className="flex flex-wrap justify-center gap-3 pt-10 mt-10 border-t border-slate-50">
                 {playersList.map((name) => (
                   <button
                     key={name}
                     onClick={() => setHighlightedUser(highlightedUser === name ? null : name)}
-                    className={`px-5 py-3 rounded-2xl flex items-center gap-3 transition-all transform hover:scale-105 ${
+                    className={`px-5 py-3 rounded-2xl flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 ${
                       highlightedUser === name 
                         ? 'bg-slate-900 text-white shadow-xl scale-110 z-10' 
-                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-slate-100'
+                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 border border-slate-100'
                     }`}
                   >
-                    <div className={`w-3 h-3 rounded-full shadow-sm`} style={{ backgroundColor: getClub(name).color }} />
+                    <div className={`w-3 h-3 rounded-full shadow-sm ${highlightedUser === name ? 'ring-2 ring-white/50' : ''}`} style={{ backgroundColor: getClub(name).color }} />
                     <span className="text-xs font-black tracking-tight">{name}</span>
                   </button>
                 ))}
                 {highlightedUser && (
-                  <button onClick={() => setHighlightedUser(null)} className="ml-4 px-4 py-3 text-xs font-black text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-colors">전체 보기</button>
+                  <button onClick={() => setHighlightedUser(null)} className="ml-4 px-4 py-3 text-xs font-black text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-colors uppercase tracking-widest">Show All</button>
                 )}
               </div>
             </div>
           </section>
         )}
 
-        {/* 전체 데이터 탭 */}
+        {/* 전체 데이터 */}
         {activeTab === 'data' && (
           <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-700">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
