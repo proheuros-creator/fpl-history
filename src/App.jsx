@@ -2,10 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown } from 'lucide-react';
 
-// 시즌별 승점 데이터
+// 시즌별 승점 데이터 - 중복 키 제거 및 데이터 정제
 const rawData = [
   { season: "2010/11", "이지용": null, "임우람": 1838, "장용석": 1346, "장재윤": 1416, "전민호": null, "정세현": null, "정용우": null, "정재훈": 1367, "정창영": 1889, "천영석": null, "하원석": null, "한지상": null, "한상진": null },
-  { season: "2011/12", "이지용": null, "임우람": 1919, "장용석": null, "장재윤": 1751, "전민호": 2047, "정세현": null, "정용우": null, "정재훈": 2015, "정창영": 1912, "전민호": 2047, "정재훈": 2015 },
+  { season: "2011/12", "이지용": null, "임우람": 1919, "장용석": null, "장재윤": 1751, "전민호": 2047, "정세현": null, "정용우": null, "정재훈": 2015, "정창영": 1912 },
   { season: "2012/13", "이지용": null, "임우람": 1984, "장용석": null, "장재윤": 1743, "전민호": 2069, "정세현": 1735, "정재훈": 1967, "정창영": 1966, "천영석": 1879 },
   { season: "2013/14", "이지용": null, "임우람": 2220, "장재윤": 1745, "전민호": 2168, "정세현": 2036, "정재훈": 1974, "정창영": 2041, "천영석": 1931 },
   { season: "2014/15", "이지용": 1580, "임우람": 1848, "장재윤": 1763, "전민호": 1908, "정세현": 2027, "정재훈": 1695, "정창영": 1964, "천영석": 1891 },
@@ -21,7 +21,7 @@ const rawData = [
   { season: "2024/25", "임우람": 2405, "장용석": 1792, "장재윤": 2240, "전민호": 1949, "정세현": 2294, "정창영": 2265, "천영석": 2265, "하원석": 2050, "한상진": 1883 }
 ];
 
-// 시즌별 세계 순위 데이터 (예시 데이터 포함)
+// 시즌별 세계 순위 데이터
 const rankData = [
   { season: "2010/11", "이지용": null, "임우람": 488858, "장용석": 2044453, "장재윤": 1919854, "정재훈": 2010131, "정창영": 320870 },
   { season: "2011/12", "임우람": 367085, "장재윤": 1026060, "전민호": 91994, "정재훈": 138279, "정창영": 389776 },
@@ -42,7 +42,7 @@ const rankData = [
 
 const playersList = ["이지용", "임우람", "장용석", "장재윤", "전민호", "정세현", "정용우", "정재훈", "정창영", "천영석", "하원석", "한지상", "한상진"];
 
-// 클럽 정보 매핑 (실제 공식 로고 이미지 반영)
+// 클럽 정보 매핑
 const clubMapping = {
   "임우람": { name: "AC 밀란", color: "#fb090b", logo: "https://upload.wikimedia.org/wikipedia/commons/d/d0/Logo_of_AC_Milan.svg" },
   "장용석": { name: "맨체스터 시티", color: "#6caddf", logo: "https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg" },
@@ -60,10 +60,13 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('winners');
   const [highlightedUser, setHighlightedUser] = useState(null);
 
-  // 시즌별 우승자 및 각 시즌 1등 점수 맵핑
+  // 시즌별 우승자 및 각 시즌 1등 점수 맵핑 - undefined 방어 로직 추가
   const seasonStats = useMemo(() => {
     return rawData.map(d => {
-      const scores = playersList.map(p => ({ name: p, score: d[p] })).filter(x => x.score !== null);
+      const scores = playersList
+        .map(p => ({ name: p, score: d[p] }))
+        .filter(x => typeof x.score === 'number'); // 숫자인 데이터만 필터링
+      
       if (scores.length === 0) return null;
       const winner = scores.reduce((prev, current) => (prev.score > current.score) ? prev : current);
       return { season: d.season, winner: winner.name, score: winner.score, maxScore: winner.score };
@@ -74,36 +77,40 @@ const App = () => {
   const playerHonors = useMemo(() => {
     const winCounts = {};
     playersList.forEach(p => winCounts[p] = 0);
-    seasonStats.forEach(sw => winCounts[sw.winner]++);
+    seasonStats.forEach(sw => {
+      if (sw && sw.winner) winCounts[sw.winner]++;
+    });
 
     return playersList.map(name => {
-      const scores = rawData.map(d => d[name]).filter(s => s !== null);
-      const ranks = rankData.map(d => d[name]).filter(r => r !== null);
+      const scores = rawData.map(d => d[name]).filter(s => typeof s === 'number');
+      const ranks = rankData.map(d => d[name]).filter(r => typeof r === 'number');
       
       const wins = winCounts[name] || 0;
       const maxScore = scores.length > 0 ? Math.max(...scores) : 0;
-      const maxScoreSeason = scores.length > 0 ? rawData.find(d => d[name] === maxScore)?.season : '-';
+      const maxScoreSeason = scores.length > 0 ? (rawData.find(d => d[name] === maxScore)?.season || '-') : '-';
       const bestRank = ranks.length > 0 ? Math.min(...ranks) : null;
-      const bestRankSeason = ranks.length > 0 ? rankData.find(d => d[name] === bestRank)?.season : '-';
+      const bestRankSeason = ranks.length > 0 ? (rankData.find(d => d[name] === bestRank)?.season || '-') : '-';
       
       return { name, wins, maxScore, maxScoreSeason, bestRank, bestRankSeason };
     }).sort((a, b) => b.wins - a.wins || (a.bestRank || Infinity) - (b.bestRank || Infinity));
   }, [seasonStats]);
 
-  const mostWinsPlayer = playerHonors[0];
-  const bestScorePlayer = playerHonors.reduce((prev, current) => (prev.maxScore > current.maxScore) ? prev : current);
+  const mostWinsPlayer = playerHonors[0] || { name: '-', wins: 0 };
+  const bestScorePlayer = playerHonors.reduce((prev, current) => (prev.maxScore > current.maxScore) ? prev : current, { name: '-', maxScore: 0, maxScoreSeason: '-' });
   const bestRankPlayer = playerHonors.reduce((prev, current) => {
     if (prev.bestRank === null) return current;
     if (current.bestRank === null) return prev;
     return (prev.bestRank < current.bestRank) ? prev : current;
-  });
+  }, { name: '-', bestRank: null, bestRankSeason: '-' });
 
-  // 커스텀 닷: 1등(최고 점수) 지점에 왕관 표시
+  // 커스텀 닷 컴포넌트 정의 - Recharts의 속성을 직접 받아 처리
   const CustomDot = (props) => {
     const { cx, cy, payload, dataKey, stroke } = props;
-    const scoresAtThisSeason = playersList.map(p => payload[p]).filter(v => v !== null);
-    const maxAtThisSeason = Math.max(...scoresAtThisSeason);
-    const isWinner = payload[dataKey] === maxAtThisSeason;
+    if (!cx || !cy || !payload || !dataKey) return null;
+
+    const scoresAtThisSeason = playersList.map(p => payload[p]).filter(v => typeof v === 'number');
+    const maxAtThisSeason = scoresAtThisSeason.length > 0 ? Math.max(...scoresAtThisSeason) : -1;
+    const isWinner = payload[dataKey] === maxAtThisSeason && payload[dataKey] > 0;
     const isFocused = highlightedUser === null || highlightedUser === dataKey;
 
     if (!isFocused || !payload[dataKey]) return null;
@@ -122,7 +129,6 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
-      {/* Header */}
       <header className="bg-[#3d195b] text-white p-6 shadow-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-4">
@@ -130,7 +136,7 @@ const App = () => {
               <img src="https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg" alt="PL Logo" className="w-10 h-10 object-contain" />
             </div>
             <div>
-              <h1 className="text-3xl font-black italic tracking-tighter leading-none">BAEKDOO FANTASY LEAGUE</h1>
+              <h1 className="text-3xl font-black italic tracking-tighter leading-none text-white">BAEKDOO FANTASY LEAGUE</h1>
               <p className="text-sm text-[#00ff85] font-bold mt-1 tracking-widest uppercase">History of 15 Seasons</p>
             </div>
           </div>
@@ -146,7 +152,7 @@ const App = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-[#00ff85] text-[#3d195b] shadow-lg scale-105' : 'hover:bg-white/10 text-white/70'}`}
               >
-                {tab.icon} {tab.label}
+                {tab.icon} <span>{tab.label}</span>
               </button>
             ))}
           </nav>
@@ -154,10 +160,9 @@ const App = () => {
       </header>
 
       <main className="max-w-7xl mx-auto p-4 md:p-8">
-        {/* 1. Champions Wall */}
         {activeTab === 'winners' && (
           <section className="animate-in fade-in slide-in-from-bottom-6 duration-700">
-            <h2 className="text-2xl font-black mb-8 flex items-center gap-3 italic">
+            <h2 className="text-2xl font-black mb-8 flex items-center gap-3 italic text-slate-800">
               <Trophy className="text-yellow-500 w-8 h-8" /> CHAMPIONS WALL
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -173,10 +178,10 @@ const App = () => {
                     <p className="text-lg font-black text-slate-900 mb-2 leading-tight">{win.winner}</p>
                     <div className="mt-auto flex flex-col items-center gap-1.5 w-full">
                       <div className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-black w-full flex items-center justify-center gap-1 border border-indigo-100 shadow-sm">
-                        <Globe size={10} /> {rank ? `#${rank.toLocaleString()}` : '-'}
+                        <Globe size={10} /> {typeof rank === 'number' ? `#${rank.toLocaleString()}` : '-'}
                       </div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                        {win.score.toLocaleString()} pts
+                        {typeof win.score === 'number' ? `${win.score.toLocaleString()} pts` : '-'}
                       </div>
                     </div>
                   </div>
@@ -186,18 +191,15 @@ const App = () => {
           </section>
         )}
 
-        {/* 2. Honors */}
         {activeTab === 'honors' && (
           <section className="animate-in fade-in slide-in-from-bottom-6 duration-700">
             <h2 className="text-2xl font-black mb-8 flex items-center gap-3 italic text-slate-800">
               <Award className="text-[#3d195b] w-8 h-8" /> 명예의 전당
             </h2>
-
-            {/* Top Summary Widgets */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
               <div className="bg-white p-8 rounded-[2rem] shadow-sm border-l-8 border-[#3d195b] flex items-center justify-between group hover:shadow-md transition cursor-default">
                 <div>
-                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">역대 최다 우승자</p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 text-slate-400">역대 최다 우승자</p>
                   <p className="text-3xl font-black text-[#3d195b]">{mostWinsPlayer.name}</p>
                   <p className="text-sm font-bold text-slate-500 mt-1">총 {mostWinsPlayer.wins}회 챔피언</p>
                 </div>
@@ -207,8 +209,8 @@ const App = () => {
               </div>
               <div className="bg-white p-8 rounded-[2rem] shadow-sm border-l-8 border-[#00ff85] flex items-center justify-between group hover:shadow-md transition cursor-default">
                 <div>
-                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">역대 최고 점수</p>
-                  <p className="text-3xl font-black text-[#3d195b]">{bestScorePlayer.maxScore.toLocaleString()}</p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 text-slate-400">역대 최고 점수</p>
+                  <p className="text-3xl font-black text-[#3d195b]">{bestScorePlayer.maxScore?.toLocaleString() || '0'}</p>
                   <p className="text-sm font-bold text-slate-500 mt-1">{bestScorePlayer.name} ({bestScorePlayer.maxScoreSeason})</p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-2xl">
@@ -217,7 +219,7 @@ const App = () => {
               </div>
               <div className="bg-white p-8 rounded-[2rem] shadow-sm border-l-8 border-[#0075ff] flex items-center justify-between group hover:shadow-md transition cursor-default">
                 <div>
-                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">역대 최고 세계 순위</p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 text-slate-400">역대 최고 세계 순위</p>
                   <p className="text-3xl font-black text-[#3d195b]">{bestRankPlayer.bestRank ? `#${bestRankPlayer.bestRank.toLocaleString()}` : '-'}</p>
                   <p className="text-sm font-bold text-slate-500 mt-1">{bestRankPlayer.name} ({bestRankPlayer.bestRankSeason})</p>
                 </div>
@@ -226,7 +228,6 @@ const App = () => {
                 </div>
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {playerHonors.map((player, idx) => (
                 <div key={player.name} className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative overflow-hidden group hover:border-[#00ff85] transition-all">
@@ -237,7 +238,6 @@ const App = () => {
                     </div>
                     <img src={getClub(player.name).logo} alt="Club" className="w-10 h-10 object-contain opacity-20 group-hover:opacity-100 transition duration-500" />
                   </div>
-                  
                   <div className="space-y-4">
                     <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-transparent group-hover:border-slate-100 transition-all">
                       <span className="text-[11px] font-black text-slate-400 uppercase tracking-tight">우승 횟수</span>
@@ -245,7 +245,7 @@ const App = () => {
                     </div>
                     <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-transparent group-hover:border-slate-100 transition-all">
                       <span className="text-[11px] font-black text-slate-400 uppercase tracking-tight">커리어 하이 점수</span>
-                      <span className="text-base font-black text-slate-700">{player.maxScore.toLocaleString()} pts</span>
+                      <span className="text-base font-black text-slate-700">{player.maxScore?.toLocaleString() || '0'} pts</span>
                     </div>
                     <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-transparent group-hover:border-slate-100 transition-all">
                       <span className="text-[11px] font-black text-slate-400 uppercase tracking-tight">베스트 월드 랭킹</span>
@@ -258,13 +258,12 @@ const App = () => {
           </section>
         )}
 
-        {/* 3. Trend Analysis */}
         {activeTab === 'trend' && (
           <section className="animate-in fade-in duration-700">
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
                 <div>
-                  <h2 className="text-2xl font-black flex items-center gap-3 italic">
+                  <h2 className="text-2xl font-black flex items-center gap-3 italic text-slate-800">
                     <TrendingUp className="text-[#0075ff] w-8 h-8" /> SEASONAL TRENDS
                   </h2>
                   <p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider italic">이름을 클릭하면 해당 플레이어만 강조됩니다 (왕관: 시즌 1위)</p>
@@ -275,7 +274,6 @@ const App = () => {
                   </div>
                 </div>
               </div>
-
               <div className="h-[480px] w-full mb-10">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={rawData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
@@ -303,8 +301,6 @@ const App = () => {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-
-              {/* 플레이어 리스트 선택기 */}
               <div className="flex flex-wrap justify-center gap-3 pt-10 border-t border-slate-50">
                 {playersList.map((name) => (
                   <button
@@ -333,7 +329,6 @@ const App = () => {
           </section>
         )}
 
-        {/* 4. Full Data Sheet */}
         {activeTab === 'data' && (
           <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-700">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
@@ -361,7 +356,7 @@ const App = () => {
                 </thead>
                 <tbody>
                   {rawData.map((row, idx) => {
-                    const seasonScores = playersList.map(pl => row[pl]).filter(s => s !== null);
+                    const seasonScores = playersList.map(pl => row[pl]).filter(s => typeof s === 'number');
                     const maxScore = seasonScores.length > 0 ? Math.max(...seasonScores) : -1;
                     const currentSeasonRankData = rankData.find(d => d.season === row.season);
                     
@@ -370,12 +365,12 @@ const App = () => {
                         <td className="p-6 font-black text-xs text-[#3d195b] sticky left-0 bg-white z-10 border-r border-slate-50 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)] italic">{row.season}</td>
                         {playersList.map(p => {
                           const score = row[p];
-                          const isMax = score !== null && score === maxScore;
+                          const isMax = score !== null && typeof score === 'number' && score === maxScore;
                           const rank = currentSeasonRankData?.[p];
                           
                           return (
                             <td key={p} className={`p-6 border-r border-slate-50 last:border-0 ${isMax ? 'bg-indigo-50/40' : ''}`}>
-                              {score ? (
+                              {typeof score === 'number' ? (
                                 <div className="flex flex-col gap-2">
                                   <div className="flex items-center justify-between">
                                     <span className={`text-sm font-black ${isMax ? 'text-[#e90052]' : 'text-slate-700'}`}>
@@ -384,7 +379,7 @@ const App = () => {
                                     {isMax && <div className="bg-yellow-400 p-1 rounded-md shadow-sm animate-pulse"><Crown size={12} fill="#fff" color="#fff" /></div>}
                                   </div>
                                   <div className="px-2 py-1 bg-white border border-slate-100 rounded-lg text-[9px] font-black text-indigo-500 flex items-center justify-center gap-1 shadow-xs ring-1 ring-black/2 transition-all hover:scale-105">
-                                    <Globe size={9} /> {rank ? `#${rank.toLocaleString()}` : '-'}
+                                    <Globe size={9} /> {typeof rank === 'number' ? `#${rank.toLocaleString()}` : '-'}
                                   </div>
                                 </div>
                               ) : (
