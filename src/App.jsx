@@ -2,7 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Calendar, ListOrdered, Loader2, BarChart2, ChevronDown, ChevronUp, Activity } from 'lucide-react';
 
-// 시즌별 승점 데이터 (2010/11 ~ 2024/25) - 점수 데이터 오류 수정 완료 (23/24, 24/25 시즌 복구)
+// ==========================================
+// 1. 데이터 정의 (Data Definitions)
+// ==========================================
+
+const playersList = ["이지용", "임우람", "장용석", "장재윤", "전민호", "정세현", "정용우", "정재훈", "정창영", "천영석", "하원석", "한지상", "한상진"];
+
+// 시즌별 점수 데이터 (Points Data)
 const rawData = [
   { season: "2010/11", "이지용": null, "임우람": 1838, "장용석": 1346, "장재윤": 1416, "전민호": null, "정세현": null, "정용우": null, "정재훈": 1367, "정창영": 1889, "천영석": null, "하원석": null, "한지상": null, "한상진": null },
   { season: "2011/12", "이지용": null, "임우람": 1919, "장용석": null, "장재윤": 1751, "전민호": 2047, "정세현": null, "정용우": null, "정재훈": 2015, "정창영": 1912, "천영석": null, "하원석": null, "한지상": null, "한상진": null },
@@ -21,7 +27,7 @@ const rawData = [
   { season: "2024/25", "이지용": null, "임우람": 2405, "장용석": 1792, "장재윤": 2240, "전민호": 1949, "정세현": 2294, "정용우": null, "정재훈": null, "정창영": 2265, "천영석": 2265, "하원석": 2050, "한지상": null, "한상진": 1883 }
 ];
 
-// 시즌별 세계 순위 데이터 (2010/11 ~ 2024/25)
+// 시즌별 세계 순위 데이터 (World Rank Data)
 const rankData = [
   { season: "2010/11", "이지용": null, "임우람": 488858, "장용석": 2044453, "장재윤": 1919854, "전민호": null, "정세현": null, "정용우": null, "정재훈": 2010131, "정창영": 320870, "천영석": null, "하원석": null, "한지상": null, "한상진": null },
   { season: "2011/12", "이지용": null, "임우람": 367085, "장용석": null, "장재윤": 1026060, "전민호": 91994, "정세현": null, "정용우": null, "정재훈": 138279, "정창영": 389776, "천영석": null, "하원석": null, "한지상": null, "한상진": null },
@@ -40,8 +46,6 @@ const rankData = [
   { season: "2024/25", "이지용": null, "임우람": 542178, "장용석": 7586555, "장재윤": 2277431, "전민호": 6036128, "정세현": 1578299, "정용우": null, "정재훈": null, "정창영": 1939953, "천영석": 1938678, "하원석": 4923350, "한지상": null, "한상진": 6681248 }
 ];
 
-const playersList = ["이지용", "임우람", "장용석", "장재윤", "전민호", "정세현", "정용우", "정재훈", "정창영", "천영석", "하원석", "한지상", "한상진"];
-
 // 클럽 정보 매핑
 const clubMapping = {
   "임우람": { name: "AC Milan", color: "#fb090b", logo: "https://upload.wikimedia.org/wikipedia/commons/d/d0/Logo_of_AC_Milan.svg" },
@@ -57,52 +61,36 @@ const clubMapping = {
 
 const getClub = (name) => clubMapping[name] || clubMapping.default;
 
-// 순위별 색상 그라데이션 함수 (Log Scale + Color Tuning) - 구간별 색상 최적화
-const getRankColor = (rank) => {
+// ==========================================
+// 2. Helper Functions (Colors)
+// ==========================================
+
+// 세계 순위 색상 (Log Scale) - 이름 변경 getWorldRankColor
+const getWorldRankColor = (rank) => {
   if (typeof rank !== 'number') return { backgroundColor: '#f8fafc', color: '#94a3b8', borderColor: '#e2e8f0' };
   
-  const logRank = Math.log(rank);
-  const minLog = Math.log(1);
-  const maxLog = Math.log(8000000);
-  
-  const ratio = (logRank - minLog) / (maxLog - minLog);
-  
+  const RANK_1 = 1;
+  const RANK_10K = 10000;
+  const RANK_50K = 50000;
+  const RANK_500K = 500000;
+  const RANK_WORST = 8000000;
+
   let hue, saturation, lightness, alpha, fontWeight, boxShadow;
   
-  if (rank <= 10000) {
-    // 1등 ~ 1만등: 에메랄드/민트 (Hue 170 -> 155)
-    const t = (Math.log(rank) - Math.log(1)) / (Math.log(10000) - Math.log(1));
-    hue = 170 - (t * 15); 
-    saturation = 95;
-    lightness = 35;
-    alpha = 0.25; 
-    fontWeight = '900'; 
+  if (rank <= RANK_10K) {
+    const ratio = (Math.log(rank) - Math.log(RANK_1)) / (Math.log(RANK_10K) - Math.log(RANK_1));
+    hue = 170 - (ratio * 15); saturation = 95; lightness = 35; alpha = 0.25; fontWeight = '900'; 
     boxShadow = `0 0 6px hsla(${hue}, 80%, 40%, 0.4)`; 
-  } else if (rank <= 50000) {
-    // 1만 ~ 5만: 진한 초록 (Hue 150 -> 125)
-    const t = (Math.log(rank) - Math.log(10000)) / (Math.log(50000) - Math.log(10000));
-    hue = 150 - (t * 25);
-    saturation = 90;
-    lightness = 40;
-    alpha = 0.2;
-    fontWeight = '800';
-  } else if (rank <= 500000) {
-    // 5만 ~ 50만: 초록 ~ 노랑 (Hue 120 -> 60)
-    const t = (Math.log(rank) - Math.log(50000)) / (Math.log(500000) - Math.log(50000));
-    hue = 120 - (t * 60); 
-    saturation = 85;
-    lightness = 45;
-    alpha = 0.15;
-    fontWeight = '700';
+  } else if (rank <= RANK_50K) {
+    const ratio = (Math.log(rank) - Math.log(RANK_10K)) / (Math.log(RANK_50K) - Math.log(RANK_10K));
+    hue = 150 - (ratio * 25); saturation = 90; lightness = 40; alpha = 0.2; fontWeight = '800';
+  } else if (rank <= RANK_500K) {
+    const ratio = (Math.log(rank) - Math.log(RANK_50K)) / (Math.log(RANK_500K) - Math.log(RANK_50K));
+    hue = 120 - (ratio * 60); saturation = 85; lightness = 45; alpha = 0.15; fontWeight = '700';
   } else {
-    // 50만 ~ 800만: 노랑 ~ 빨강 (Hue 60 -> 0)
-    const t = (Math.log(rank) - Math.log(500000)) / (Math.log(8000000) - Math.log(500000));
-    const safeRatio = Math.min(Math.max(t, 0), 1);
-    hue = 60 - (safeRatio * 60); 
-    saturation = 90;
-    lightness = 50;
-    alpha = 0.1;
-    fontWeight = '600';
+    const ratio = (Math.log(rank) - Math.log(RANK_500K)) / (Math.log(RANK_WORST) - Math.log(RANK_500K));
+    const safeRatio = Math.min(Math.max(ratio, 0), 1);
+    hue = 60 - (safeRatio * 60); saturation = 90; lightness = 50; alpha = 0.1; fontWeight = '600';
   }
   
   return {
@@ -111,6 +99,33 @@ const getRankColor = (rank) => {
     borderColor: `hsla(${hue}, ${saturation}%, ${lightness}%, 0.4)`,
     fontWeight: fontWeight || 'normal',
     boxShadow: boxShadow || 'none'
+  };
+};
+
+// 리그 순위 색상
+const getLeagueRankColorStyle = (rank, total = 13) => {
+  if (rank === 1) return { 
+    backgroundColor: '#fbbf24', 
+    color: '#ffffff', 
+    fontWeight: '900',
+    boxShadow: '0 2px 4px rgba(251, 191, 36, 0.4)',
+    border: 'none'
+  };
+  
+  if (typeof rank !== 'number' || rank < 1) return { backgroundColor: '#f1f5f9', color: '#94a3b8' };
+
+  const maxIndex = Math.max(total - 1, 1);
+  const currentIndex = rank - 2; 
+  const ratio = Math.min(Math.max(currentIndex / maxIndex, 0), 1);
+  
+  const hue = 140 - (ratio * 140); 
+  
+  return {
+    backgroundColor: `hsla(${hue}, 80%, 45%, 0.1)`,
+    color: `hsl(${hue}, 80%, 35%)`,
+    borderColor: `hsla(${hue}, 80%, 45%, 0.3)`,
+    fontWeight: '800',
+    borderWidth: '1px'
   };
 };
 
@@ -153,7 +168,8 @@ const App = () => {
         worldRank: winnerRank ? `#${winnerRank.toLocaleString()}` : "N/A",
         rawWorldRank: winnerRank,
         leagueRanks,
-        sortedPlayers
+        sortedPlayers,
+        totalParticipants: scores.length
       };
     }).filter(x => x !== null);
   }, []);
@@ -213,14 +229,14 @@ const App = () => {
   const top10Wins = useMemo(() => [...playerHonors].filter(p => p.wins > 0).sort((a, b) => b.wins - a.wins).slice(0, 10), [playerHonors]);
 
   // 커스텀 툴팁
-  const CustomTooltip = ({ active, payload, label, isRankChart }) => {
+  const CustomTooltip = ({ active, payload, label, type }) => {
     if (active && payload && payload.length) {
       const currentSeasonStats = seasonStats.find(s => s.season === label);
-      const isLeagueRankChart = activeTab === 'rankTrend';
-      const isWorldRankChart = payload[0].dataKey === playersList[0] && (rankData[0] && rankData[0].hasOwnProperty(payload[0].dataKey));
-      
-      const isRankMode = isRankChart || isLeagueRankChart || isWorldRankChart;
-      const sortedPayload = [...payload].sort((a, b) => isRankMode ? a.value - b.value : b.value - a.value);
+      // type: 'score' -> 내림차순, 'worldRank' or 'rank' -> 오름차순 (1위가 위로)
+      const sortedPayload = [...payload].sort((a, b) => {
+        if (type === 'worldRank' || type === 'rank') return a.value - b.value;
+        return b.value - a.value;
+      });
 
       return (
         <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-slate-100 min-w-[180px]">
@@ -229,17 +245,35 @@ const App = () => {
             {sortedPayload.map((entry, index) => {
               const leagueRank = currentSeasonStats?.leagueRanks[entry.name];
               const displayVal = entry.value.toLocaleString();
-              const formattedVal = isRankMode ? `#${displayVal}` : displayVal;
+              
+              const isWorldRank = type === 'worldRank' || type === 'rank';
+              const formattedVal = isWorldRank ? `#${displayVal}` : displayVal;
+              const rankStyle = isWorldRank ? getWorldRankColor(entry.value) : {};
+
+              const leagueRankStyle = getLeagueRankColorStyle(leagueRank, currentSeasonStats?.totalParticipants || 13);
 
               return (
                 <div key={index} className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full ${leagueRank === 1 ? 'bg-yellow-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    <span 
+                        className="text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border border-transparent"
+                        style={{
+                            backgroundColor: leagueRankStyle.backgroundColor,
+                            color: leagueRankStyle.color,
+                            borderColor: leagueRankStyle.borderColor,
+                            boxShadow: leagueRank === 1 ? leagueRankStyle.boxShadow : 'none'
+                        }}
+                    >
                       {leagueRank}
                     </span>
                     <span className="text-xs font-bold text-slate-700" style={{ color: entry.stroke }}>{entry.name}</span>
                   </div>
-                  <span className="text-xs font-black text-slate-900">{formattedVal}</span>
+                  <span 
+                    className="text-xs font-black text-slate-900 px-1.5 rounded-md"
+                    style={isWorldRank ? { backgroundColor: rankStyle.backgroundColor, color: rankStyle.color } : {}}
+                  >
+                    {formattedVal}
+                  </span>
                 </div>
               );
             })}
@@ -287,53 +321,6 @@ const App = () => {
         )}
         <circle cx={cx} cy={cy} r={isBest ? 5 : 3} fill={stroke} stroke="#fff" strokeWidth={2} />
       </g>
-    );
-  };
-
-  const InfoCardDot = (props) => {
-    const { cx, cy, payload, dataKey, stroke } = props;
-    const isFocused = highlightedUser === null || highlightedUser === dataKey;
-    
-    if (!cx || !cy || !payload || !dataKey || !isFocused) return null;
-
-    const season = payload.season;
-    const currentSeasonStats = seasonStats.find(s => s.season === season);
-    const leagueRank = currentSeasonStats?.leagueRanks[dataKey];
-    const score = rawData.find(d => d.season === season)?.[dataKey];
-    const worldRank = rankData.find(r => r.season === season)?.[dataKey];
-    const rankStyle = typeof worldRank === 'number' ? getRankColor(worldRank) : {};
-
-    if (highlightedUser !== dataKey) {
-        return <circle cx={cx} cy={cy} r={2} fill={stroke} opacity={0.5} />;
-    }
-
-    const cardWidth = 90;
-    const cardHeight = 55;
-    const x = cx - cardWidth / 2;
-    const y = cy - cardHeight - 10;
-
-    return (
-      <foreignObject x={x} y={y} width={cardWidth} height={cardHeight} style={{ overflow: 'visible' }}>
-        <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-2 flex flex-col items-center justify-center h-full relative z-50">
-            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-slate-200"></div>
-            <div className="flex items-center gap-1 mb-1 w-full justify-between px-1">
-                <span className={`text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full ${leagueRank === 1 ? 'bg-yellow-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                    {leagueRank}
-                </span>
-                <span className="text-[10px] font-bold text-slate-800 truncate max-w-[50px]">{dataKey}</span>
-            </div>
-            <div className="flex flex-col w-full px-1">
-                <div className="flex justify-between items-center text-[8px] text-slate-400 font-bold">
-                    <span>Pts</span>
-                    <span className="text-slate-600">{score?.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center text-[8px] text-slate-400 font-bold">
-                    <span>W.R</span>
-                    <span className="px-1 rounded" style={rankStyle}>#{worldRank?.toLocaleString()}</span>
-                </div>
-            </div>
-        </div>
-      </foreignObject>
     );
   };
 
@@ -406,7 +393,7 @@ const App = () => {
 
               <div className="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 flex flex-col justify-center items-center">
                 <TrendingUp size={20} className="mx-auto text-green-500 mb-2" />
-                <div className="text-xs font-bold text-slate-400 uppercase">Best Score</div>
+                <div className="text-xs font-bold text-slate-400 uppercase">Best Points</div>
                 <div className="text-xl font-black text-slate-800 mb-1">{stats.maxScore?.toLocaleString()}</div>
                 <span className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-bold text-slate-500">
                   {stats.maxScoreSeason}
@@ -427,9 +414,20 @@ const App = () => {
                 <BarChart2 size={16} className="text-indigo-500"/> Rank Distribution
               </h4>
               <div className="space-y-2">
-                {Object.keys(rankCounts).sort((a, b) => Number(a) - Number(b)).map(rank => (
+                {Object.keys(rankCounts).sort((a, b) => Number(a) - Number(b)).map(rank => {
+                  const r = Number(rank);
+                  const leagueRankStyle = getLeagueRankColorStyle(r, 13);
+                  return (
                   <div key={rank} className="flex items-start text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black mr-3 shrink-0 ${rank === '1' ? 'bg-yellow-400 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                    <div 
+                        className={`w-6 h-6 rounded-full flex items-center justify-center font-black mr-3 shrink-0 border border-transparent`}
+                        style={{
+                            backgroundColor: leagueRankStyle.backgroundColor,
+                            color: leagueRankStyle.color,
+                            borderColor: leagueRankStyle.borderColor,
+                            boxShadow: r === 1 ? leagueRankStyle.boxShadow : 'none'
+                        }}
+                    >
                       {rank}
                     </div>
                     <div>
@@ -444,7 +442,7 @@ const App = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
 
@@ -455,18 +453,27 @@ const App = () => {
               <div className="space-y-2">
                 <div className="grid grid-cols-4 px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 rounded-xl">
                   <span>Season</span>
-                  <span className="text-center">Score</span>
+                  <span className="text-center">Points</span>
                   <span className="text-center">League</span>
                   <span className="text-right">Global</span>
                 </div>
                 {playerRecord.reverse().map((rec, i) => {
-                  const rankStyle = typeof rec.worldRank === 'number' ? getRankColor(rec.worldRank) : {};
+                  const rankStyle = typeof rec.worldRank === 'number' ? getWorldRankColor(rec.worldRank) : {};
+                  const leagueRankStyle = getLeagueRankColorStyle(rec.leagueRank, 13);
                   return (
                   <div key={i} className="grid grid-cols-4 items-center bg-white border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/30 p-3 rounded-xl transition group">
                     <span className="text-xs font-black text-slate-500 group-hover:text-indigo-600 italic">{rec.season}</span>
                     <span className="text-sm font-bold text-slate-700 text-center">{rec.score.toLocaleString()}</span>
                     <div className="flex justify-center">
-                      <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black ${rec.leagueRank === 1 ? 'bg-yellow-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                      <span 
+                        className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black border border-transparent`}
+                        style={{
+                            backgroundColor: leagueRankStyle.backgroundColor,
+                            color: leagueRankStyle.color,
+                            borderColor: leagueRankStyle.borderColor,
+                            boxShadow: rec.leagueRank === 1 ? leagueRankStyle.boxShadow : 'none'
+                        }}
+                      >
                         {rec.leagueRank}
                       </span>
                     </div>
@@ -529,7 +536,7 @@ const App = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
               {[...seasonStats].reverse().map((win, idx) => {
                 const club = getClub(win.winner);
-                const rankStyle = typeof win.rawWorldRank === 'number' ? getRankColor(win.rawWorldRank) : {};
+                const rankStyle = typeof win.rawWorldRank === 'number' ? getWorldRankColor(win.rawWorldRank) : {};
                 return (
                   <div key={idx} onClick={() => setModalPlayer({ name: win.winner })} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col items-center text-center transition hover:scale-105 hover:shadow-xl group cursor-pointer">
                     <div className="w-20 h-20 mb-4 flex items-center justify-center p-2 bg-slate-50 rounded-2xl shadow-inner group-hover:bg-white transition-colors">
@@ -548,203 +555,88 @@ const App = () => {
           </section>
         )}
 
+        {/* ... (명예의 전당 등 다른 탭들은 이전과 동일) ... */}
         {activeTab === 'honors' && (
-          <section className="animate-in fade-in slide-in-from-bottom-6 duration-700">
+             // ... honors code ... 
+             <section className="animate-in fade-in slide-in-from-bottom-6 duration-700">
             <h2 className="text-2xl font-black mb-8 flex items-center gap-3 italic text-slate-800"><Award className="text-[#3d195b] w-8 h-8" /> 명예의 전당</h2>
-            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              {/* 역대 최다 우승자 Top 10 (Expandable) */}
-              <div className="bg-white p-6 rounded-[2rem] shadow-sm border-l-8 border-[#3d195b] transition-all">
-                <div className="flex items-center justify-between mb-6 cursor-pointer" onClick={() => toggleSection('wins')}>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Most Titles</p>
-                    <h3 className="text-xl font-black text-[#3d195b]">역대 최다 우승자</h3>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="bg-slate-50 p-2 rounded-xl"><Medal className="w-6 h-6 text-[#3d195b]" /></div>
-                    {expandedSections.includes('wins') ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {top10Wins.slice(0, 1).map((p, idx) => (
-                    <div key={p.name} onClick={() => setModalPlayer(p)} className="cursor-pointer group rounded-2xl p-4 bg-yellow-50/50 border border-yellow-200 shadow-sm transition hover:scale-105">
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-black w-8 h-8 flex items-center justify-center rounded-full bg-yellow-400 text-white shadow-md">
-                            <Crown size={16} fill="white" />
-                          </span>
-                          <span className="text-xl font-black text-slate-900">{p.name}</span>
-                        </div>
-                        <span className="text-3xl font-black text-[#3d195b]">{p.wins}회</span>
-                      </div>
-                      <div className="flex flex-wrap gap-1 pl-11">
-                        {p.winningSeasons.map(season => (
-                          <span key={season} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-500 font-bold shadow-sm">
-                            {season}
-                          </span>
-                        ))}
-                      </div>
+                 {/* ... Top 10 cards ... */}
+                 {/* Wins Top 10 */}
+                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border-l-8 border-[#3d195b] transition-all">
+                    <div className="flex items-center justify-between mb-6 cursor-pointer" onClick={() => toggleSection('wins')}>
+                      <div><p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Most Titles</p><h3 className="text-xl font-black text-[#3d195b]">역대 최다 우승자</h3></div>
+                      <div className="flex items-center gap-2"><div className="bg-slate-50 p-2 rounded-xl"><Medal className="w-6 h-6 text-[#3d195b]" /></div>{expandedSections.includes('wins') ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
                     </div>
-                  ))}
-
-                  {expandedSections.includes('wins') && top10Wins.slice(1).map((p, idx) => (
-                    <div key={p.name} onClick={() => setModalPlayer(p)} className="flex justify-between items-center cursor-pointer group hover:bg-slate-50 p-2 rounded-xl transition animate-in slide-in-from-top-2 fade-in">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-black w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 text-slate-500">{idx + 2}</span>
-                        <div>
-                          <div className="font-bold text-slate-700 group-hover:text-[#3d195b] transition">{p.name}</div>
-                          <div className="flex flex-wrap gap-1 mt-0.5">
-                            {p.winningSeasons.map(season => (
-                              <span key={season} className="text-[9px] text-slate-400 bg-slate-50 px-1 rounded">{season}</span>
-                            ))}
-                          </div>
+                    <div className="space-y-3">
+                      {top10Wins.slice(0, 1).map((p, idx) => (
+                        <div key={p.name} onClick={() => setModalPlayer(p)} className="cursor-pointer group rounded-2xl p-4 bg-yellow-50/50 border border-yellow-200 shadow-sm transition hover:scale-105">
+                          <div className="flex justify-between items-center mb-2"><div className="flex items-center gap-3"><span className="text-sm font-black w-8 h-8 flex items-center justify-center rounded-full bg-yellow-400 text-white shadow-md"><Crown size={16} fill="white" /></span><span className="text-xl font-black text-slate-900">{p.name}</span></div><span className="text-3xl font-black text-[#3d195b]">{p.wins}회</span></div>
+                          <div className="flex flex-wrap gap-1 pl-11">{p.winningSeasons.map(season => (<span key={season} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-500 font-bold shadow-sm">{season}</span>))}</div>
                         </div>
-                      </div>
-                      <span className="font-black text-[#3d195b]">{p.wins}회</span>
+                      ))}
+                      {expandedSections.includes('wins') && top10Wins.slice(1).map((p, idx) => (
+                        <div key={p.name} onClick={() => setModalPlayer(p)} className="flex justify-between items-center cursor-pointer group hover:bg-slate-50 p-2 rounded-xl transition animate-in slide-in-from-top-2 fade-in">
+                          <div className="flex items-center gap-3"><span className="text-xs font-black w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 text-slate-500">{idx + 2}</span><div><div className="font-bold text-slate-700 group-hover:text-[#3d195b] transition">{p.name}</div><div className="flex flex-wrap gap-1 mt-0.5">{p.winningSeasons.map(season => (<span key={season} className="text-[9px] text-slate-400 bg-slate-50 px-1 rounded">{season}</span>))}</div></div></div><span className="font-black text-[#3d195b]">{p.wins}회</span>
+                        </div>
+                      ))}
+                      {!expandedSections.includes('wins') && (<div onClick={() => toggleSection('wins')} className="text-center text-xs text-slate-400 font-bold cursor-pointer hover:text-[#3d195b] py-2">+ View Top 10</div>)}
                     </div>
-                  ))}
+                  </div>
                   
-                  {!expandedSections.includes('wins') && (
-                    <div onClick={() => toggleSection('wins')} className="text-center text-xs text-slate-400 font-bold cursor-pointer hover:text-[#3d195b] py-2">
-                      + View Top 10
+                  {/* Scores Top 10 */}
+                  <div className="bg-white p-6 rounded-[2rem] shadow-sm border-l-8 border-[#00ff85]">
+                     <div className="flex items-center justify-between mb-6 cursor-pointer" onClick={() => toggleSection('scores')}>
+                      <div><p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Highest Points</p><h3 className="text-xl font-black text-[#3d195b]">역대 최고 점수</h3></div>
+                      <div className="flex items-center gap-2"><div className="bg-slate-50 p-2 rounded-xl"><TrendingUp className="w-6 h-6 text-[#00ff85]" /></div>{expandedSections.includes('scores') ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 역대 최고 점수 Top 10 (Expandable) */}
-              <div className="bg-white p-6 rounded-[2rem] shadow-sm border-l-8 border-[#00ff85]">
-                <div className="flex items-center justify-between mb-6 cursor-pointer" onClick={() => toggleSection('scores')}>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Highest Score</p>
-                    <h3 className="text-xl font-black text-[#3d195b]">역대 최고 점수</h3>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="bg-slate-50 p-2 rounded-xl"><TrendingUp className="w-6 h-6 text-[#00ff85]" /></div>
-                    {expandedSections.includes('scores') ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {top10AllTimeScores.slice(0, 1).map((p, idx) => {
-                    const isWinnerInSeason = seasonStats.find(s => s.season === p.season)?.winner === p.name;
-                    return (
-                    <div key={`${p.name}-${p.season}`} onClick={() => setModalPlayer({ name: p.name })} className="cursor-pointer group rounded-2xl p-4 bg-green-50/50 border border-green-200 shadow-sm transition hover:scale-105">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-black w-8 h-8 flex items-center justify-center rounded-full bg-green-500 text-white shadow-md">
-                             <Crown size={16} fill="white" />
-                          </span>
-                          <div>
-                            <div className="text-xl font-black text-slate-900">{p.name}</div>
-                            <span className="px-2 py-0.5 bg-white border border-green-100 rounded text-[10px] text-slate-500 font-bold shadow-sm inline-flex items-center gap-1">
-                              {p.season}
-                              {isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}
-                            </span>
-                          </div>
+                    <div className="space-y-3">
+                      {top10AllTimeScores.slice(0, 1).map((p, idx) => {
+                        const isWinnerInSeason = seasonStats.find(s => s.season === p.season)?.winner === p.name;
+                        return (
+                        <div key={`${p.name}-${p.season}`} onClick={() => setModalPlayer({ name: p.name })} className="cursor-pointer group rounded-2xl p-4 bg-green-50/50 border border-green-200 shadow-sm transition hover:scale-105">
+                          <div className="flex items-center justify-between mb-2"><div className="flex items-center gap-3"><span className="text-sm font-black w-8 h-8 flex items-center justify-center rounded-full bg-green-500 text-white shadow-md"><Crown size={16} fill="white" /></span><div><div className="text-xl font-black text-slate-900">{p.name}</div><span className="px-2 py-0.5 bg-white border border-green-100 rounded text-[10px] text-slate-500 font-bold shadow-sm inline-flex items-center gap-1">{p.season}{isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}</span></div></div></div><div className="text-right"><span className="text-3xl font-black text-[#3d195b]">{p.score.toLocaleString()}</span><span className="text-xs font-bold text-slate-400 ml-1">pts</span></div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                         <span className="text-3xl font-black text-[#3d195b]">{p.score.toLocaleString()}</span>
-                         <span className="text-xs font-bold text-slate-400 ml-1">pts</span>
-                      </div>
-                    </div>
-                  )})}
-
-                  {expandedSections.includes('scores') && top10AllTimeScores.slice(1).map((p, idx) => {
-                    const isWinnerInSeason = seasonStats.find(s => s.season === p.season)?.winner === p.name;
-                    return (
-                    <div key={`${p.name}-${p.season}`} onClick={() => setModalPlayer({ name: p.name })} className="flex justify-between items-center cursor-pointer group hover:bg-slate-50 p-2 rounded-xl transition animate-in slide-in-from-top-2 fade-in">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-black w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 text-slate-500">{idx + 2}</span>
-                        <div>
-                          <div className="font-bold text-slate-700 group-hover:text-[#3d195b] transition">{p.name}</div>
-                          <span className="text-[10px] text-slate-400 inline-flex items-center gap-1">
-                            {p.season}
-                            {isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}
-                          </span>
+                      )})}
+                      {expandedSections.includes('scores') && top10AllTimeScores.slice(1).map((p, idx) => {
+                        const isWinnerInSeason = seasonStats.find(s => s.season === p.season)?.winner === p.name;
+                        return (
+                        <div key={`${p.name}-${p.season}`} onClick={() => setModalPlayer({ name: p.name })} className="flex justify-between items-center cursor-pointer group hover:bg-slate-50 p-2 rounded-xl transition animate-in slide-in-from-top-2 fade-in">
+                          <div className="flex items-center gap-3"><span className="text-xs font-black w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 text-slate-500">{idx + 2}</span><div><div className="font-bold text-slate-700 group-hover:text-[#3d195b] transition">{p.name}</div><span className="text-[10px] text-slate-400 inline-flex items-center gap-1">{p.season}{isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}</span></div></div><span className="font-black text-[#3d195b]">{p.score.toLocaleString()}</span>
                         </div>
-                      </div>
-                      <span className="font-black text-[#3d195b]">{p.score.toLocaleString()}</span>
+                      )})}
+                      {!expandedSections.includes('scores') && (<div onClick={() => toggleSection('scores')} className="text-center text-xs text-slate-400 font-bold cursor-pointer hover:text-[#3d195b] py-2">+ View Top 10</div>)}
                     </div>
-                  )})}
-                  
-                  {!expandedSections.includes('scores') && (
-                    <div onClick={() => toggleSection('scores')} className="text-center text-xs text-slate-400 font-bold cursor-pointer hover:text-[#3d195b] py-2">
-                      + View Top 10
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 역대 최고 세계 순위 Top 10 (Expandable) */}
-              <div className="bg-white p-6 rounded-[2rem] shadow-sm border-l-8 border-[#0075ff]">
-                <div className="flex items-center justify-between mb-6 cursor-pointer" onClick={() => toggleSection('ranks')}>
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Best Rank</p>
-                    <h3 className="text-xl font-black text-[#3d195b]">역대 최고 세계 순위</h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="bg-slate-50 p-2 rounded-xl"><Globe className="w-6 h-6 text-[#0075ff]" /></div>
-                    {expandedSections.includes('ranks') ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+
+                  {/* Ranks Top 10 */}
+                  <div className="bg-white p-6 rounded-[2rem] shadow-sm border-l-8 border-[#0075ff]">
+                     <div className="flex items-center justify-between mb-6 cursor-pointer" onClick={() => toggleSection('ranks')}>
+                      <div><p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Best Rank</p><h3 className="text-xl font-black text-[#3d195b]">역대 최고 세계 순위</h3></div>
+                      <div className="flex items-center gap-2"><div className="bg-slate-50 p-2 rounded-xl"><Globe className="w-6 h-6 text-[#0075ff]" /></div>{expandedSections.includes('ranks') ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
+                    </div>
+                    <div className="space-y-3">
+                      {top10AllTimeRanks.slice(0, 1).map((p, idx) => {
+                        const isWinnerInSeason = seasonStats.find(s => s.season === p.season)?.winner === p.name;
+                        return (
+                        <div key={`${p.name}-${p.season}`} onClick={() => setModalPlayer({ name: p.name })} className="cursor-pointer group rounded-2xl p-4 bg-blue-50/50 border border-blue-200 shadow-sm transition hover:scale-105">
+                          <div className="flex items-center justify-between mb-2"><div className="flex items-center gap-3"><span className="text-sm font-black w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 text-white shadow-md"><Crown size={16} fill="white" /></span><div><div className="text-xl font-black text-slate-900">{p.name}</div><span className="px-2 py-0.5 bg-white border border-blue-100 rounded text-[10px] text-slate-500 font-bold shadow-sm inline-flex items-center gap-1">{p.season}{isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}</span></div></div></div><div className="text-right"><span className="text-2xl font-black text-[#3d195b]">#{p.rank.toLocaleString()}</span></div>
+                        </div>
+                      )})}
+                      {expandedSections.includes('ranks') && top10AllTimeRanks.slice(1).map((p, idx) => {
+                        const isWinnerInSeason = seasonStats.find(s => s.season === p.season)?.winner === p.name;
+                        return (
+                        <div key={`${p.name}-${p.season}`} onClick={() => setModalPlayer({ name: p.name })} className="flex justify-between items-center cursor-pointer group hover:bg-slate-50 p-2 rounded-xl transition animate-in slide-in-from-top-2 fade-in">
+                          <div className="flex items-center gap-3"><span className="text-xs font-black w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 text-slate-500">{idx + 2}</span><div><div className="font-bold text-slate-700 group-hover:text-[#3d195b] transition">{p.name}</div><span className="text-[10px] text-slate-400 inline-flex items-center gap-1">{p.season}{isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}</span></div></div><span className="font-black text-[#3d195b]">#{p.rank.toLocaleString()}</span>
+                        </div>
+                      )})}
+                      {!expandedSections.includes('ranks') && (<div onClick={() => toggleSection('ranks')} className="text-center text-xs text-slate-400 font-bold cursor-pointer hover:text-[#3d195b] py-2">+ View Top 10</div>)}
+                    </div>
                   </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {top10AllTimeRanks.slice(0, 1).map((p, idx) => {
-                    const isWinnerInSeason = seasonStats.find(s => s.season === p.season)?.winner === p.name;
-                    return (
-                    <div key={`${p.name}-${p.season}`} onClick={() => setModalPlayer({ name: p.name })} className="cursor-pointer group rounded-2xl p-4 bg-blue-50/50 border border-blue-200 shadow-sm transition hover:scale-105">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-black w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 text-white shadow-md">
-                             <Crown size={16} fill="white" />
-                          </span>
-                          <div>
-                            <div className="text-xl font-black text-slate-900">{p.name}</div>
-                            <span className="px-2 py-0.5 bg-white border border-blue-100 rounded text-[10px] text-slate-500 font-bold shadow-sm inline-flex items-center gap-1">
-                              {p.season}
-                              {isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                         <span className="text-2xl font-black text-[#3d195b]">#{p.rank.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  )})}
-
-                  {expandedSections.includes('ranks') && top10AllTimeRanks.slice(1).map((p, idx) => {
-                    const isWinnerInSeason = seasonStats.find(s => s.season === p.season)?.winner === p.name;
-                    return (
-                    <div key={`${p.name}-${p.season}`} onClick={() => setModalPlayer({ name: p.name })} className="flex justify-between items-center cursor-pointer group hover:bg-slate-50 p-2 rounded-xl transition animate-in slide-in-from-top-2 fade-in">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-black w-5 h-5 flex items-center justify-center rounded-full bg-slate-100 text-slate-500">{idx + 2}</span>
-                        <div>
-                          <div className="font-bold text-slate-700 group-hover:text-[#3d195b] transition">{p.name}</div>
-                          <span className="text-[10px] text-slate-400 inline-flex items-center gap-1">
-                            {p.season}
-                            {isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="font-black text-[#3d195b]">#{p.rank.toLocaleString()}</span>
-                    </div>
-                  )})}
-
-                  {!expandedSections.includes('ranks') && (
-                    <div onClick={() => toggleSection('ranks')} className="text-center text-xs text-slate-400 font-bold cursor-pointer hover:text-[#3d195b] py-2">
-                      + View Top 10
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
-
-            {/* 전체 플레이어 카드 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+             {/* 전체 플레이어 카드 그리드 (이전과 동일) */}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {playerHonors.map((player, idx) => (
                 <div key={player.name} onClick={() => setModalPlayer(player)} className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative overflow-hidden group hover:border-[#00ff85] transition-all cursor-pointer hover:translate-y-[-4px] hover:shadow-xl">
                   <div className="flex justify-between items-start mb-8">
@@ -771,13 +663,13 @@ const App = () => {
           <section className="animate-in fade-in duration-700 space-y-8">
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
-                <div><h2 className="text-2xl font-black flex items-center gap-3 italic text-slate-800 uppercase"><TrendingUp className="text-[#0075ff] w-8 h-8" /> 시즌별 성적 및 세계 순위 추이</h2><p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider italic">Y축 로그 스케일 적용 (1위와 하위권 격차 강조)</p></div><div className="bg-slate-100 px-3 py-1.5 rounded-full text-[10px] font-black text-slate-500 flex items-center gap-1 uppercase tracking-widest"><Crown size={12} fill="#FFD700" color="#B8860B" /> Season Best</div>
+                <div><h2 className="text-2xl font-black flex items-center gap-3 italic text-slate-800 uppercase"><TrendingUp className="text-[#0075ff] w-8 h-8" /> 시즌별 점수 및 순위 추이</h2><p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider italic">이름을 클릭하여 전체 그래프를 하이라이트 하세요</p></div><div className="bg-slate-100 px-3 py-1.5 rounded-full text-[10px] font-black text-slate-500 flex items-center gap-1 uppercase tracking-widest"><Crown size={12} fill="#FFD700" color="#B8860B" /> Season Best</div>
               </div>
               <div className="mb-16">
-                <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><Award size={16} className="text-indigo-500" /> 1. 시즌 승점 추이 (Score Trend - Log Scale)</h3>
+                <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><Award size={16} className="text-indigo-500" /> 1. 시즌 점수 추이 (Points Trend)</h3>
                 <div className="h-[400px] w-full"><ResponsiveContainer width="100%" height="100%">
                     <LineChart data={rawData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis scale="log" domain={['dataMin - 100', 'dataMax + 100']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<CustomTooltip />} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis scale="log" domain={['dataMin - 100', 'dataMax + 100']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<CustomTooltip type="score" />} />
                       {playersList.map((name) => (<Line key={name} type="monotone" dataKey={name} stroke={getClub(name).color} strokeWidth={highlightedUser === null || highlightedUser === name ? 5 : 1.5} strokeOpacity={highlightedUser === null || highlightedUser === name ? 1 : 0.08} dot={<ScoreCustomDot />} activeDot={{ r: 8, strokeWidth: 0 }} connectNulls animationDuration={1500} />))}
                     </LineChart>
                   </ResponsiveContainer></div>
@@ -786,7 +678,7 @@ const App = () => {
                 <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><Globe size={16} className="text-blue-500" /> 2. 세계 순위 추이 (World Rank Trend - Log Scale)</h3>
                 <div className="h-[400px] w-full"><ResponsiveContainer width="100%" height="100%">
                     <LineChart data={rankData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis reversed scale="log" domain={['dataMin', 'dataMax']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<CustomTooltip isRankChart={true} />} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis reversed scale="log" domain={['dataMin', 'dataMax']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<CustomTooltip type="worldRank" />} />
                       {playersList.map((name) => (<Line key={name} type="monotone" dataKey={name} stroke={getClub(name).color} strokeWidth={highlightedUser === null || highlightedUser === name ? 5 : 1.5} strokeOpacity={highlightedUser === null || highlightedUser === name ? 1 : 0.08} dot={<RankCustomDot />} activeDot={{ r: 8, strokeWidth: 0 }} connectNulls animationDuration={1500} />))}
                     </LineChart>
                   </ResponsiveContainer></div>
@@ -867,10 +759,13 @@ const App = () => {
                           const isDimmed = highlightedUser && highlightedUser !== playerName;
                           
                           // 리그 순위 변화 표에서도 세계 순위에 색상 적용
-                          const rankStyle = typeof worldRank === 'number' ? getRankColor(worldRank) : {};
+                          const rankStyle = typeof worldRank === 'number' ? getWorldRankColor(worldRank) : {};
+
+                          // 리그 순위 배경색 적용 (1등은 골드, 나머지는 순위에 따라 그라데이션)
+                          const cellStyle = getLeagueRankColorStyle(rank, stat.totalParticipants);
 
                           return (
-                            <td key={stat.season} className={`p-4 border-r border-slate-50 last:border-0 align-top transition-opacity duration-300 ${isWinner ? 'bg-yellow-50/30' : ''} ${isDimmed ? 'opacity-20 blur-[1px]' : 'opacity-100'}`}>
+                            <td key={stat.season} className={`p-4 border-r border-slate-50 last:border-0 align-top transition-opacity duration-300 ${isDimmed ? 'opacity-20 blur-[1px]' : 'opacity-100'}`} style={{ backgroundColor: rankStyle.backgroundColor }}>
                               <div className={`flex flex-col items-center gap-1.5 ${isHighlighted ? 'scale-110 transform transition-transform' : ''}`}>
                                 <div className="flex items-center gap-2 mb-1">
                                   <img src={club.logo} alt="" className="w-5 h-5 object-contain" />
@@ -881,7 +776,7 @@ const App = () => {
                                 <div className="flex flex-col items-center gap-0.5">
                                   <span className="text-[10px] font-bold text-slate-400">{score?.toLocaleString()} pts</span>
                                   <span 
-                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-all"
+                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-all border"
                                     style={rankStyle}
                                   >
                                     #{worldRank?.toLocaleString()}
@@ -926,13 +821,21 @@ const App = () => {
                           const worldRank = currentSeasonRankData?.[p];
                           
                           // 배경색 스타일 계산 (Log Scale)
-                          const rankStyle = typeof worldRank === 'number' ? getRankColor(worldRank) : {};
+                          const rankStyle = typeof worldRank === 'number' ? getWorldRankColor(worldRank) : {};
+
+                          // 리그 순위 배경색 적용 (1등은 골드, 나머지는 순위에 따라 그라데이션)
+                          const cellStyle = getLeagueRankColorStyle(leagueRank, currentSeasonStats?.totalParticipants || 13);
 
                           return (
-                            <td key={p} className={`p-6 border-r border-slate-50 last:border-0 ${isMax ? 'bg-indigo-50/40' : ''}`}>
+                            <td key={p} className={`p-6 border-r border-slate-50 last:border-0 ${isMax ? 'bg-indigo-50/40' : ''}`} style={rankStyle.backgroundColor ? { backgroundColor: rankStyle.backgroundColor } : {}}>
                               {typeof score === 'number' ? (
                                 <div className="flex items-start gap-3">
-                                  <div className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black shadow-sm border ${leagueRank === 1 ? 'bg-yellow-400 border-yellow-500 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'}`}>{leagueRank}</div>
+                                  <div 
+                                    className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black shadow-sm border`}
+                                    style={leagueRank ? cellStyle : {}}
+                                  >
+                                    {leagueRank}
+                                  </div>
                                   <div className="flex flex-col gap-1.5 flex-1">
                                     <div className="flex items-center justify-between"><span className={`text-sm font-black ${isMax ? 'text-[#e90052]' : 'text-slate-700'}`}>{score.toLocaleString()}</span>{isMax && <div className="bg-yellow-400 p-0.5 rounded shadow-sm"><Crown size={10} fill="#fff" color="#fff" /></div>}</div>
                                     <div 
