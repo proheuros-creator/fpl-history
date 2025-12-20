@@ -1,11 +1,46 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Loader2 } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Calendar } from 'lucide-react';
 
-// GitHub에 업로드한 CSV 파일의 Raw URL을 여기에 입력하세요.
-// 예: "https://raw.githubusercontent.com/username/repo/main/fpl_data.csv"
-// 같은 저장소 내에 있다면 "/fpl_data.csv" 처럼 상대 경로도 가능합니다.
-const CSV_URL = "https://github.com/proheuros-creator/fpl-history/raw/refs/heads/main/fpl_data.csv"; 
+// 시즌별 승점 데이터 (2010/11 ~ 2024/25) - 하드코딩 복구
+const rawData = [
+  { season: "2010/11", "임우람": 1838, "장용석": 1346, "장재윤": 1416, "정재훈": 1367, "정창영": 1889 },
+  { season: "2011/12", "임우람": 1919, "장재윤": 1751, "전민호": 2047, "정재훈": 2015, "정창영": 1912 },
+  { season: "2012/13", "임우람": 1984, "장재윤": 1743, "전민호": 2069, "정세현": 1735, "정재훈": 1967, "정창영": 1966, "천영석": 1879 },
+  { season: "2013/14", "임우람": 2220, "장재윤": 1745, "전민호": 2168, "정세현": 2036, "정재훈": 1974, "정창영": 2041, "천영석": 1931 },
+  { season: "2014/15", "이지용": 1580, "임우람": 1848, "장재윤": 1763, "전민호": 1908, "정세현": 2027, "정재훈": 1695, "정창영": 1964, "천영석": 1891 },
+  { season: "2015/16", "이지용": 1890, "임우람": 1982, "장재윤": 1954, "전민호": 2060, "정세현": 1906, "정용우": 2039, "정재훈": 1944, "정창영": 2103, "천영석": 1943 },
+  { season: "2016/17", "이지용": 1586, "임우람": 2118, "장용석": 2330, "장재윤": 2009, "전민호": 1951, "정세현": 1913, "정용우": 2160, "정재훈": 1762, "정창영": 1963, "천영석": 1878 },
+  { season: "2017/18", "이지용": 1636, "임우람": 2010, "장용석": 2197, "장재윤": 1969, "전민호": 2270, "정세현": 2231, "정용우": 2167, "정재훈": 2199, "정창영": 2137, "천영석": 2018, "하원석": 1961, "한지상": 1700 },
+  { season: "2018/19", "임우람": 2120, "장용석": 2334, "장재윤": 2025, "전민호": 2204, "정세현": 2081, "정용우": 2204, "정재훈": 2151, "정창영": 2211, "천영석": 2056, "하원석": 1786, "한지상": 2270 },
+  { season: "2019/20", "임우람": 2151, "장용석": 2414, "장재윤": 2190, "전민호": 2169, "정세현": 2250, "정용우": 2298, "정재훈": 2187, "정창영": 2289, "천영석": 2055, "하원석": 2269, "한지상": 2274, "한상진": 1716 },
+  { season: "2020/21", "임우람": 2368, "장용석": 2297, "장재윤": 2285, "전민호": 2140, "정세현": 2420, "정용우": 2302, "정재훈": 2406, "정창영": 2409, "천영석": 2447, "하원석": 2022, "한지상": 2368, "한상진": 1871 },
+  { season: "2021/22", "임우람": 2307, "장용석": 2423, "장재윤": 2383, "전민호": 2048, "정세현": 1963, "정재훈": 2551, "정창영": 2339, "천영석": 1959, "하원석": 2257, "한상진": 1919 },
+  { season: "2022/23", "임우람": 2273, "장용석": 2558, "장재윤": 2333, "전민호": 2203, "정세현": 2469, "정창영": 2464, "천영석": 1955, "하원석": 2150, "한지상": 2625, "한상진": 2055 },
+  { season: "2023/24", "임우람": 2216, "장용석": 2465, "장재윤": 2323, "전민호": 2375, "정세현": 2164, "정창영": 2305, "하원석": 2079, "한상진": 1994 },
+  { season: "2024/25", "임우람": 2405, "장용석": 1792, "장재윤": 2240, "전민호": 1949, "정세현": 2294, "정창영": 2265, "천영석": 2265, "하원석": 2050, "한상진": 1883 }
+];
+
+// 시즌별 세계 순위 데이터 (2010/11 ~ 2024/25) - 하드코딩 복구
+const rankData = [
+  { season: "2010/11", "임우람": 488858, "장용석": 2044453, "장재윤": 1919854, "정재훈": 2010131, "정창영": 320870 },
+  { season: "2011/12", "임우람": 367085, "장재윤": 1026060, "전민호": 91994, "정재훈": 138279, "정창영": 389776 },
+  { season: "2012/13", "임우람": 264342, "장재윤": 1253182, "전민호": 99067, "정세현": 1290044, "정재훈": 311838, "정창영": 315403, "천영석": 635078 },
+  { season: "2013/14", "임우람": 236645, "장재윤": 1890898, "전민호": 393568, "정세현": 899505, "정재훈": 1140409, "정창영": 878573, "천영석": 1299089 },
+  { season: "2014/15", "이지용": 2199131, "임우람": 852480, "장재윤": 1306012, "전민호": 548999, "정세현": 151328, "정재훈": 1646552, "정창영": 320759, "천영석": 628997 },
+  { season: "2015/16", "이지용": 1286580, "임우람": 747000, "장재윤": 907113, "전민호": 364313, "정세현": 1195929, "정용우": 454652, "정재훈": 965642, "정창영": 213623, "천영석": 971034 },
+  { season: "2016/17", "이지용": 3144335, "임우람": 197136, "장용석": 5882, "장재윤": 564450, "전민호": 861550, "정세현": 1087148, "정용우": 118309, "정재훈": 2085800, "정창영": 795337, "천영석": 1304172 },
+  { season: "2017/18", "이지용": 4016193, "임우람": 1100809, "장용석": 132207, "장재윤": 1431587, "전민호": 30851, "정세현": 72189, "정용우": 211329, "정재훈": 127232, "정창영": 316724, "천영석": 1031065, "하원석": 1498748, "한지상": 3569025 },
+  { season: "2018/19", "임우람": 694211, "장용석": 31160, "장재윤": 1589264, "전민호": 256535, "정세현": 1011675, "정용우": 258014, "정재훈": 493419, "정창영": 234075, "천영석": 1250565, "하원석": 4176389, "한지상": 97859 },
+  { season: "2019/20", "임우람": 548058, "장용석": 1485, "장재윤": 337871, "전민호": 440940, "정세현": 134969, "정용우": 51944, "정재훈": 352286, "정창영": 62604, "천영석": 1315076, "하원석": 95030, "한지상": 85191, "한상진": 5151898 },
+  { season: "2020/21", "임우람": 149364, "장용석": 375991, "장재윤": 427962, "전민호": 1357913, "정세현": 2420, "정용우": 2302, "정재훈": 2406, "정창영": 2409, "천영석": 2447, "하원석": 2022, "한지상": 2368, "한상진": 1871 },
+  { season: "2021/22", "임우람": 2307, "장용석": 2423, "장재윤": 2383, "전민호": 2048, "정세현": 1963, "정재훈": 2551, "정창영": 2339, "천영석": 1959, "하원석": 2257, "한상진": 1919 },
+  { season: "2022/23", "임우람": 2273, "장용석": 2558, "장재윤": 2333, "전민호": 2203, "정세현": 2469, "정창영": 2464, "천영석": 1955, "하원석": 2150, "한지상": 2625, "한상진": 2055 },
+  { season: "2023/24", "임우람": 2216, "장용석": 2465, "장재윤": 2323, "전민호": 2375, "정세현": 2164, "정창영": 2305, "하원석": 2079, "한상진": 1994 },
+  { season: "2024/25", "임우람": 2405, "장용석": 1792, "장재윤": 2240, "전민호": 1949, "정세현": 2294, "정창영": 2265, "천영석": 2265, "하원석": 2050, "한상진": 1883 }
+];
+
+const playersList = ["이지용", "임우람", "장용석", "장재윤", "전민호", "정세현", "정용우", "정재훈", "정창영", "천영석", "하원석", "한지상", "한상진"];
 
 // 클럽 정보 매핑
 const clubMapping = {
@@ -26,72 +61,9 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('winners');
   const [highlightedUser, setHighlightedUser] = useState(null);
   const [modalPlayer, setModalPlayer] = useState(null);
-  
-  // 데이터 상태 관리
-  const [rawData, setRawData] = useState([]);
-  const [rankData, setRankData] = useState([]);
-  const [playersList, setPlayersList] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // CSV 데이터 페칭 및 파싱
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(CSV_URL);
-        if (!response.ok) throw new Error("CSV 파일을 불러올 수 없습니다.");
-        const text = await response.text();
-        
-        // CSV 파싱 (헤더: season,name,score,world_rank)
-        const rows = text.trim().split('\n').slice(1); // 헤더 제외
-        const parsedScores = {};
-        const parsedRanks = {};
-        const players = new Set();
-
-        rows.forEach(row => {
-          // 콤마로 분리하되, 따옴표 안의 콤마는 무시하는 정규식 또는 간단한 split 사용
-          const cols = row.split(',');
-          if (cols.length < 4) return;
-
-          const season = cols[0].trim();
-          const name = cols[1].trim();
-          const score = parseInt(cols[2].trim(), 10);
-          const rank = parseInt(cols[3].trim(), 10);
-
-          if (!name) return;
-          players.add(name);
-
-          // 점수 데이터 구조화
-          if (!parsedScores[season]) parsedScores[season] = { season };
-          parsedScores[season][name] = isNaN(score) ? null : score;
-
-          // 순위 데이터 구조화
-          if (!parsedRanks[season]) parsedRanks[season] = { season };
-          parsedRanks[season][name] = isNaN(rank) ? null : rank;
-        });
-
-        // 객체를 배열로 변환
-        const sortedSeasons = Object.keys(parsedScores).sort(); // 시즌 정렬 (문자열 기준이지만 2010부터라 ok)
-        
-        setRawData(sortedSeasons.map(season => parsedScores[season]));
-        setRankData(sortedSeasons.map(season => parsedRanks[season]));
-        setPlayersList(Array.from(players).sort());
-        setLoading(false);
-
-      } catch (err) {
-        console.error(err);
-        setError("데이터 로딩 중 오류가 발생했습니다. CSV 경로를 확인해주세요.");
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   // 시즌별 순위 및 우승자 통계
   const seasonStats = useMemo(() => {
-    if (rawData.length === 0) return [];
     return rawData.map(d => {
       const scores = playersList
         .map(p => ({ name: p, score: d[p] }))
@@ -116,11 +88,10 @@ const App = () => {
         leagueRanks 
       };
     }).filter(x => x !== null);
-  }, [rawData, rankData, playersList]);
+  }, []);
 
   // 플레이어별 종합 통계
   const playerHonors = useMemo(() => {
-    if (playersList.length === 0) return [];
     return playersList.map(name => {
       const scores = rawData.map(d => d[name]).filter(s => typeof s === 'number');
       const ranks = rankData.map(d => d[name]).filter(r => typeof r === 'number');
@@ -133,7 +104,7 @@ const App = () => {
       
       return { name, wins, maxScore, maxScoreSeason, bestRank, bestRankSeason };
     }).filter(p => p.maxScore > 0).sort((a, b) => b.wins - a.wins || (a.bestRank || Infinity) - (b.bestRank || Infinity));
-  }, [playersList, rawData, rankData, seasonStats]);
+  }, [seasonStats]);
 
   const mostWinsPlayer = playerHonors[0] || { name: '-', wins: 0 };
   const bestScorePlayer = [...playerHonors].sort((a, b) => b.maxScore - a.maxScore)[0] || { name: '-', maxScore: 0, maxScoreSeason: '-' };
@@ -272,32 +243,6 @@ const App = () => {
       </div>
     );
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-          <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Loading Archives...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
-        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <X className="w-8 h-8 text-red-500" />
-          </div>
-          <h2 className="text-xl font-black text-slate-800 mb-2">Error Loading Data</h2>
-          <p className="text-slate-500 mb-6">{error}</p>
-          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-slate-900 text-white rounded-xl font-bold">Retry</button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
