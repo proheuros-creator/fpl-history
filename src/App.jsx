@@ -1,43 +1,43 @@
 import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Calendar } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Calendar, ListOrdered, Loader2 } from 'lucide-react';
 
-// 시즌별 승점 데이터 (2010/11 ~ 2024/25) - 하드코딩 복구
+// 시즌별 승점 데이터 (2010/11 ~ 2024/25) - 최신 데이터 반영
 const rawData = [
-  { season: "2010/11", "임우람": 1838, "장용석": 1346, "장재윤": 1416, "정재훈": 1367, "정창영": 1889 },
-  { season: "2011/12", "임우람": 1919, "장재윤": 1751, "전민호": 2047, "정재훈": 2015, "정창영": 1912 },
-  { season: "2012/13", "임우람": 1984, "장재윤": 1743, "전민호": 2069, "정세현": 1735, "정재훈": 1967, "정창영": 1966, "천영석": 1879 },
-  { season: "2013/14", "임우람": 2220, "장재윤": 1745, "전민호": 2168, "정세현": 2036, "정재훈": 1974, "정창영": 2041, "천영석": 1931 },
-  { season: "2014/15", "이지용": 1580, "임우람": 1848, "장재윤": 1763, "전민호": 1908, "정세현": 2027, "정재훈": 1695, "정창영": 1964, "천영석": 1891 },
-  { season: "2015/16", "이지용": 1890, "임우람": 1982, "장재윤": 1954, "전민호": 2060, "정세현": 1906, "정용우": 2039, "정재훈": 1944, "정창영": 2103, "천영석": 1943 },
-  { season: "2016/17", "이지용": 1586, "임우람": 2118, "장용석": 2330, "장재윤": 2009, "전민호": 1951, "정세현": 1913, "정용우": 2160, "정재훈": 1762, "정창영": 1963, "천영석": 1878 },
-  { season: "2017/18", "이지용": 1636, "임우람": 2010, "장용석": 2197, "장재윤": 1969, "전민호": 2270, "정세현": 2231, "정용우": 2167, "정재훈": 2199, "정창영": 2137, "천영석": 2018, "하원석": 1961, "한지상": 1700 },
-  { season: "2018/19", "임우람": 2120, "장용석": 2334, "장재윤": 2025, "전민호": 2204, "정세현": 2081, "정용우": 2204, "정재훈": 2151, "정창영": 2211, "천영석": 2056, "하원석": 1786, "한지상": 2270 },
-  { season: "2019/20", "임우람": 2151, "장용석": 2414, "장재윤": 2190, "전민호": 2169, "정세현": 2250, "정용우": 2298, "정재훈": 2187, "정창영": 2289, "천영석": 2055, "하원석": 2269, "한지상": 2274, "한상진": 1716 },
-  { season: "2020/21", "임우람": 2368, "장용석": 2297, "장재윤": 2285, "전민호": 2140, "정세현": 2420, "정용우": 2302, "정재훈": 2406, "정창영": 2409, "천영석": 2447, "하원석": 2022, "한지상": 2368, "한상진": 1871 },
-  { season: "2021/22", "임우람": 2307, "장용석": 2423, "장재윤": 2383, "전민호": 2048, "정세현": 1963, "정재훈": 2551, "정창영": 2339, "천영석": 1959, "하원석": 2257, "한상진": 1919 },
-  { season: "2022/23", "임우람": 2273, "장용석": 2558, "장재윤": 2333, "전민호": 2203, "정세현": 2469, "정창영": 2464, "천영석": 1955, "하원석": 2150, "한지상": 2625, "한상진": 2055 },
-  { season: "2023/24", "임우람": 2216, "장용석": 2465, "장재윤": 2323, "전민호": 2375, "정세현": 2164, "정창영": 2305, "하원석": 2079, "한상진": 1994 },
-  { season: "2024/25", "임우람": 2405, "장용석": 1792, "장재윤": 2240, "전민호": 1949, "정세현": 2294, "정창영": 2265, "천영석": 2265, "하원석": 2050, "한상진": 1883 }
+  { season: "2010/11", "이지용": null, "임우람": 1838, "장용석": 1346, "장재윤": 1416, "전민호": null, "정세현": null, "정용우": null, "정재훈": 1367, "정창영": 1889, "천영석": null, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2011/12", "이지용": null, "임우람": 1919, "장용석": null, "장재윤": 1751, "전민호": 2047, "정세현": null, "정용우": null, "정재훈": 2015, "정창영": 1912, "천영석": null, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2012/13", "이지용": null, "임우람": 1984, "장용석": null, "장재윤": 1743, "전민호": 2069, "정세현": 1735, "정용우": null, "정재훈": 1967, "정창영": 1966, "천영석": 1879, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2013/14", "이지용": null, "임우람": 2220, "장용석": null, "장재윤": 1745, "전민호": 2168, "정세현": 2036, "정용우": null, "정재훈": 1974, "정창영": 2041, "천영석": 1931, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2014/15", "이지용": 1580, "임우람": 1848, "장용석": null, "장재윤": 1763, "전민호": 1908, "정세현": 2027, "정용우": null, "정재훈": 1695, "정창영": 1964, "천영석": 1891, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2015/16", "이지용": 1890, "임우람": 1982, "장용석": null, "장재윤": 1954, "전민호": 2060, "정세현": 1906, "정용우": 2039, "정재훈": 1944, "정창영": 2103, "천영석": 1943, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2016/17", "이지용": 1586, "임우람": 2118, "장용석": 2330, "장재윤": 2009, "전민호": 1951, "정세현": 1913, "정용우": 2160, "정재훈": 1762, "정창영": 1963, "천영석": 1878, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2017/18", "이지용": 1636, "임우람": 2010, "장용석": 2197, "장재윤": 1969, "전민호": 2270, "정세현": 2231, "정용우": 2167, "정재훈": 2199, "정창영": 2137, "천영석": 2018, "하원석": 1961, "한지상": 1700, "한상진": null },
+  { season: "2018/19", "이지용": null, "임우람": 2120, "장용석": 2334, "장재윤": 2025, "전민호": 2204, "정세현": 2081, "정용우": 2204, "정재훈": 2151, "정창영": 2211, "천영석": 2056, "하원석": 1786, "한지상": 2270, "한상진": null },
+  { season: "2019/20", "이지용": null, "임우람": 2151, "장용석": 2414, "장재윤": 2190, "전민호": 2169, "정세현": 2250, "정용우": 2298, "정재훈": 2187, "정창영": 2289, "천영석": 2055, "하원석": 2269, "한지상": 2274, "한상진": 1716 },
+  { season: "2020/21", "이지용": null, "임우람": 2368, "장용석": 2297, "장재윤": 2285, "전민호": 2140, "정세현": 2420, "정용우": 2302, "정재훈": 2406, "정창영": 2409, "천영석": 2447, "하원석": 2022, "한지상": 2368, "한상진": 1871 },
+  { season: "2021/22", "이지용": null, "임우람": 2307, "장용석": 2423, "장재윤": 2383, "전민호": 2048, "정세현": 1963, "정용우": null, "정재훈": 2551, "정창영": 2339, "천영석": 1959, "하원석": 2257, "한지상": null, "한상진": 1919 },
+  { season: "2022/23", "이지용": null, "임우람": 2273, "장용석": 2558, "장재윤": 2333, "전민호": 2203, "정세현": 2469, "정용우": null, "정재훈": null, "정창영": 2464, "천영석": 1955, "하원석": 2150, "한지상": 2625, "한상진": 2055 },
+  { season: "2023/24", "이지용": null, "임우람": 2216, "장용석": 2465, "장재윤": 2323, "전민호": 2375, "정세현": 2164, "정용우": null, "정재훈": null, "정창영": 2305, "천영석": null, "하원석": 2079, "한지상": null, "한상진": 1994 },
+  { season: "2024/25", "이지용": null, "임우람": 2405, "장용석": 1792, "장재윤": 2240, "전민호": 1949, "정세현": 2294, "정용우": null, "정재훈": null, "정창영": 2265, "천영석": 2265, "하원석": 2050, "한지상": null, "한상진": 1883 }
 ];
 
-// 시즌별 세계 순위 데이터 (2010/11 ~ 2024/25) - 하드코딩 복구
+// 시즌별 세계 순위 데이터 (2010/11 ~ 2024/25) - 최신 데이터 반영
 const rankData = [
-  { season: "2010/11", "임우람": 488858, "장용석": 2044453, "장재윤": 1919854, "정재훈": 2010131, "정창영": 320870 },
-  { season: "2011/12", "임우람": 367085, "장재윤": 1026060, "전민호": 91994, "정재훈": 138279, "정창영": 389776 },
-  { season: "2012/13", "임우람": 264342, "장재윤": 1253182, "전민호": 99067, "정세현": 1290044, "정재훈": 311838, "정창영": 315403, "천영석": 635078 },
-  { season: "2013/14", "임우람": 236645, "장재윤": 1890898, "전민호": 393568, "정세현": 899505, "정재훈": 1140409, "정창영": 878573, "천영석": 1299089 },
-  { season: "2014/15", "이지용": 2199131, "임우람": 852480, "장재윤": 1306012, "전민호": 548999, "정세현": 151328, "정재훈": 1646552, "정창영": 320759, "천영석": 628997 },
-  { season: "2015/16", "이지용": 1286580, "임우람": 747000, "장재윤": 907113, "전민호": 364313, "정세현": 1195929, "정용우": 454652, "정재훈": 965642, "정창영": 213623, "천영석": 971034 },
-  { season: "2016/17", "이지용": 3144335, "임우람": 197136, "장용석": 5882, "장재윤": 564450, "전민호": 861550, "정세현": 1087148, "정용우": 118309, "정재훈": 2085800, "정창영": 795337, "천영석": 1304172 },
-  { season: "2017/18", "이지용": 4016193, "임우람": 1100809, "장용석": 132207, "장재윤": 1431587, "전민호": 30851, "정세현": 72189, "정용우": 211329, "정재훈": 127232, "정창영": 316724, "천영석": 1031065, "하원석": 1498748, "한지상": 3569025 },
-  { season: "2018/19", "임우람": 694211, "장용석": 31160, "장재윤": 1589264, "전민호": 256535, "정세현": 1011675, "정용우": 258014, "정재훈": 493419, "정창영": 234075, "천영석": 1250565, "하원석": 4176389, "한지상": 97859 },
-  { season: "2019/20", "임우람": 548058, "장용석": 1485, "장재윤": 337871, "전민호": 440940, "정세현": 134969, "정용우": 51944, "정재훈": 352286, "정창영": 62604, "천영석": 1315076, "하원석": 95030, "한지상": 85191, "한상진": 5151898 },
-  { season: "2020/21", "임우람": 149364, "장용석": 375991, "장재윤": 427962, "전민호": 1357913, "정세현": 2420, "정용우": 2302, "정재훈": 2406, "정창영": 2409, "천영석": 2447, "하원석": 2022, "한지상": 2368, "한상진": 1871 },
-  { season: "2021/22", "임우람": 2307, "장용석": 2423, "장재윤": 2383, "전민호": 2048, "정세현": 1963, "정재훈": 2551, "정창영": 2339, "천영석": 1959, "하원석": 2257, "한상진": 1919 },
-  { season: "2022/23", "임우람": 2273, "장용석": 2558, "장재윤": 2333, "전민호": 2203, "정세현": 2469, "정창영": 2464, "천영석": 1955, "하원석": 2150, "한지상": 2625, "한상진": 2055 },
-  { season: "2023/24", "임우람": 2216, "장용석": 2465, "장재윤": 2323, "전민호": 2375, "정세현": 2164, "정창영": 2305, "하원석": 2079, "한상진": 1994 },
-  { season: "2024/25", "임우람": 2405, "장용석": 1792, "장재윤": 2240, "전민호": 1949, "정세현": 2294, "정창영": 2265, "천영석": 2265, "하원석": 2050, "한상진": 1883 }
+  { season: "2010/11", "이지용": null, "임우람": 488858, "장용석": 2044453, "장재윤": 1919854, "전민호": null, "정세현": null, "정용우": null, "정재훈": 2010131, "정창영": 320870, "천영석": null, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2011/12", "이지용": null, "임우람": 367085, "장용석": null, "장재윤": 1026060, "전민호": 91994, "정세현": null, "정용우": null, "정재훈": 138279, "정창영": 389776, "천영석": null, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2012/13", "이지용": null, "임우람": 264342, "장용석": null, "장재윤": 1253182, "전민호": 99067, "정세현": 1290044, "정용우": null, "정재훈": 311838, "정창영": 315403, "천영석": 635078, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2013/14", "이지용": null, "임우람": 236645, "장용석": null, "장재윤": 1890898, "전민호": 393568, "정세현": 899505, "정용우": null, "정재훈": 1140409, "정창영": 878573, "천영석": 1299089, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2014/15", "이지용": 2199131, "임우람": 852480, "장용석": null, "장재윤": 1306012, "전민호": 548999, "정세현": 151328, "정용우": null, "정재훈": 1646552, "정창영": 320759, "천영석": 628997, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2015/16", "이지용": 1286580, "임우람": 747000, "장용석": null, "장재윤": 907113, "전민호": 364313, "정세현": 1195929, "정용우": 454652, "정재훈": 965642, "정창영": 213623, "천영석": 971034, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2016/17", "이지용": 3144335, "임우람": 197136, "장용석": 5882, "장재윤": 564450, "전민호": 861550, "정세현": 1087148, "정용우": 118309, "정재훈": 2085800, "정창영": 795337, "천영석": 1304172, "하원석": null, "한지상": null, "한상진": null },
+  { season: "2017/18", "이지용": 4016193, "임우람": 1100809, "장용석": 132207, "장재윤": 1431587, "전민호": 30851, "정세현": 72189, "정용우": 211329, "정재훈": 127232, "정창영": 316724, "천영석": 1031065, "하원석": 1498748, "한지상": 3569025, "한상진": null },
+  { season: "2018/19", "이지용": null, "임우람": 694211, "장용석": 31160, "장재윤": 1589264, "전민호": 256535, "정세현": 1011675, "정용우": 258014, "정재훈": 493419, "정창영": 234075, "천영석": 1250565, "하원석": 4176389, "한지상": 97859, "한상진": null },
+  { season: "2019/20", "이지용": null, "임우람": 548058, "장용석": 1485, "장재윤": 337871, "전민호": 440940, "정세현": 134969, "정용우": 51944, "정재훈": 352286, "정창영": 62604, "천영석": 1315076, "하원석": 95030, "한지상": 85191, "한상진": 5151898 },
+  { season: "2020/21", "이지용": null, "임우람": 149364, "장용석": 375991, "장재윤": 427962, "전민호": 1357913, "정세현": 59523, "정용우": 356857, "정재훈": 77566, "정창영": 73420, "천영석": 32660, "하원석": 2410493, "한지상": 147457, "한상진": 3861290 },
+  { season: "2021/22", "이지용": null, "임우람": 630610, "장용석": 251837, "장재윤": 357532, "전민호": 2356910, "정세현": 3147382, "정용우": null, "정재훈": 91145, "정창영": 501060, "천영석": 3180491, "하원석": 866734, "한지상": null, "한상진": 3582231 },
+  { season: "2022/23", "이지용": null, "임우람": 1826166, "장용석": 47291, "장재윤": 1197568, "전민호": 2656613, "정세현": 279357, "정용우": null, "정재훈": null, "정창영": 300559, "천영석": 5794022, "하원석": 3334400, "한지상": 4726, "한상진": 4555938 },
+  { season: "2023/24", "이지용": null, "임우람": 1983212, "장용석": 144543, "장재윤": 837533, "전민호": 486351, "정세현": 2672608, "정용우": null, "정재훈": null, "정창영": 990135, "천영석": null, "하원석": 3806677, "한지상": null, "한상진": 4857744 },
+  { season: "2024/25", "이지용": null, "임우람": 542178, "장용석": 7586555, "장재윤": 2277431, "전민호": 6036128, "정세현": 1578299, "정용우": null, "정재훈": null, "정창영": 1939953, "천영석": 1938678, "하원석": 4923350, "한지상": null, "한상진": 6681248 }
 ];
 
 const playersList = ["이지용", "임우람", "장용석", "장재윤", "전민호", "정세현", "정용우", "정재훈", "정창영", "천영석", "하원석", "한지상", "한상진"];
@@ -68,7 +68,7 @@ const App = () => {
       const scores = playersList
         .map(p => ({ name: p, score: d[p] }))
         .filter(x => typeof x.score === 'number')
-        .sort((a, b) => b.score - a.score);
+        .sort((a, b) => b.score - a.score); // 점수 내림차순 정렬
       
       if (scores.length === 0) return null;
       
@@ -76,8 +76,11 @@ const App = () => {
       const winnerRank = rankData.find(r => r.season === d.season)?.[winner.name];
       
       const leagueRanks = {};
+      const sortedPlayers = [];
+      
       scores.forEach((s, idx) => {
         leagueRanks[s.name] = idx + 1;
+        sortedPlayers[idx] = s.name; // index 0 = 1위, 1 = 2위...
       });
 
       return { 
@@ -85,7 +88,8 @@ const App = () => {
         winner: winner.name, 
         score: winner.score, 
         worldRank: winnerRank ? `#${winnerRank.toLocaleString()}` : "N/A",
-        leagueRanks 
+        leagueRanks,
+        sortedPlayers // [1위이름, 2위이름, 3위이름...]
       };
     }).filter(x => x !== null);
   }, []);
@@ -110,12 +114,12 @@ const App = () => {
   const bestScorePlayer = [...playerHonors].sort((a, b) => b.maxScore - a.maxScore)[0] || { name: '-', maxScore: 0, maxScoreSeason: '-' };
   const bestRankPlayer = [...playerHonors].sort((a, b) => (a.bestRank || Infinity) - (b.bestRank || Infinity))[0] || { name: '-', bestRank: null, bestRankSeason: '-' };
 
-  // 커스텀 툴팁
-  const CustomTooltip = ({ active, payload, label }) => {
+  // 커스텀 툴팁: 점수는 내림차순, 순위는 오름차순으로 1위가 항상 맨 위에 오도록 수정
+  const ScoreTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const currentSeasonStats = seasonStats.find(s => s.season === label);
-      const isRankChart = payload[0].dataKey === playersList[0] || (rankData[0] && rankData[0].hasOwnProperty(payload[0].dataKey));
-      const sortedPayload = [...payload].sort((a, b) => isRankChart ? a.value - b.value : b.value - a.value);
+      // 점수는 값이 클수록 좋으므로 내림차순 정렬 (b - a)
+      const sortedPayload = [...payload].sort((a, b) => b.value - a.value);
 
       return (
         <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-slate-100 min-w-[180px]">
@@ -133,6 +137,38 @@ const App = () => {
                     <span className="text-xs font-bold text-slate-700" style={{ color: entry.stroke }}>{entry.name}</span>
                   </div>
                   <span className="text-xs font-black text-slate-900">{displayVal}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const RankTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      const currentSeasonStats = seasonStats.find(s => s.season === label);
+      // 순위는 값이 작을수록 좋으므로 오름차순 정렬 (a - b)
+      const sortedPayload = [...payload].sort((a, b) => a.value - b.value);
+
+      return (
+        <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-slate-100 min-w-[180px]">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b pb-2">{label}</p>
+          <div className="space-y-2">
+            {sortedPayload.map((entry, index) => {
+              const leagueRank = currentSeasonStats?.leagueRanks[entry.name];
+              const displayVal = entry.value.toLocaleString();
+              return (
+                <div key={index} className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full ${leagueRank === 1 ? 'bg-yellow-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                      {leagueRank}
+                    </span>
+                    <span className="text-xs font-bold text-slate-700" style={{ color: entry.stroke }}>{entry.name}</span>
+                  </div>
+                  <span className="text-xs font-black text-slate-900">#{displayVal}</span>
                 </div>
               );
             })}
@@ -263,6 +299,7 @@ const App = () => {
               { id: 'winners', label: '역대 우승자', icon: <Medal size={16}/> },
               { id: 'honors', label: '명예의 전당', icon: <Star size={16}/> },
               { id: 'trend', label: '트렌드 분석', icon: <TrendingUp size={16}/> },
+              { id: 'rankTrend', label: '리그 순위 변화', icon: <ListOrdered size={16}/> },
               { id: 'data', label: '전체 데이터', icon: <Users size={16}/> },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-[#00ff85] text-[#3d195b] shadow-lg scale-105' : 'hover:bg-white/10 text-white/70'}`}>
@@ -329,17 +366,18 @@ const App = () => {
           </section>
         )}
 
+        {/* 트렌드 분석 (점수 & 세계 순위) */}
         {activeTab === 'trend' && (
           <section className="animate-in fade-in duration-700 space-y-8">
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
-                <div><h2 className="text-2xl font-black flex items-center gap-3 italic text-slate-800 uppercase"><TrendingUp className="text-[#0075ff] w-8 h-8" /> 시즌별 성적 및 순위 추이 (Log Scale)</h2><p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider italic">이름을 클릭하여 전체 그래프를 하이라이트 하세요</p></div><div className="bg-slate-100 px-3 py-1.5 rounded-full text-[10px] font-black text-slate-500 flex items-center gap-1 uppercase tracking-widest"><Crown size={12} fill="#FFD700" color="#B8860B" /> Season Best</div>
+                <div><h2 className="text-2xl font-black flex items-center gap-3 italic text-slate-800 uppercase"><TrendingUp className="text-[#0075ff] w-8 h-8" /> 시즌별 성적 및 세계 순위 추이</h2><p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-wider italic">Y축 로그 스케일 적용 (1위와 하위권 격차 강조)</p></div><div className="bg-slate-100 px-3 py-1.5 rounded-full text-[10px] font-black text-slate-500 flex items-center gap-1 uppercase tracking-widest"><Crown size={12} fill="#FFD700" color="#B8860B" /> Season Best</div>
               </div>
               <div className="mb-16">
                 <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><Award size={16} className="text-indigo-500" /> 1. 시즌 승점 추이 (Score Trend - Log Scale)</h3>
                 <div className="h-[400px] w-full"><ResponsiveContainer width="100%" height="100%">
                     <LineChart data={rawData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis scale="log" domain={['dataMin - 100', 'dataMax + 100']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<CustomTooltip />} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis scale="log" domain={['dataMin - 100', 'dataMax + 100']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<ScoreTooltip />} />
                       {playersList.map((name) => (<Line key={name} type="monotone" dataKey={name} stroke={getClub(name).color} strokeWidth={highlightedUser === null || highlightedUser === name ? 5 : 1.5} strokeOpacity={highlightedUser === null || highlightedUser === name ? 1 : 0.08} dot={<ScoreCustomDot />} activeDot={{ r: 8, strokeWidth: 0 }} connectNulls animationDuration={1500} />))}
                     </LineChart>
                   </ResponsiveContainer></div>
@@ -348,7 +386,7 @@ const App = () => {
                 <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><Globe size={16} className="text-blue-500" /> 2. 세계 순위 추이 (World Rank Trend - Log Scale)</h3>
                 <div className="h-[400px] w-full"><ResponsiveContainer width="100%" height="100%">
                     <LineChart data={rankData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis reversed scale="log" domain={['dataMin', 'dataMax']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<CustomTooltip />} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis reversed scale="log" domain={['dataMin', 'dataMax']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<RankTooltip />} />
                       {playersList.map((name) => (<Line key={name} type="monotone" dataKey={name} stroke={getClub(name).color} strokeWidth={highlightedUser === null || highlightedUser === name ? 5 : 1.5} strokeOpacity={highlightedUser === null || highlightedUser === name ? 1 : 0.08} dot={<RankCustomDot />} activeDot={{ r: 8, strokeWidth: 0 }} connectNulls animationDuration={1500} />))}
                     </LineChart>
                   </ResponsiveContainer></div>
@@ -357,6 +395,92 @@ const App = () => {
                 {playersList.map((name) => (<button key={name} onClick={() => setHighlightedUser(highlightedUser === name ? null : name)} className={`px-5 py-3 rounded-2xl flex items-center gap-3 transition-all transform hover:scale-105 active:scale-95 ${highlightedUser === name ? 'bg-slate-900 text-white shadow-xl scale-110 z-10' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 border border-slate-100'}`}><div className={`w-3 h-3 rounded-full shadow-sm`} style={{ backgroundColor: getClub(name).color }} /><span className="text-xs font-black tracking-tight">{name}</span></button>))}
                 {highlightedUser && (<button onClick={() => setHighlightedUser(null)} className="ml-4 px-4 py-3 text-xs font-black text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-colors uppercase tracking-widest">Show All</button>)}
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* 리그 순위 변화 (NEW: Table) */}
+        {activeTab === 'rankTrend' && (
+          <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-700">
+            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+               <h2 className="font-black italic flex items-center gap-3 text-[#3d195b] text-xl">
+                 <ListOrdered size={22}/> 리그 순위 변화 (League Rank Table)
+               </h2>
+               <div className="flex flex-col items-end">
+                 <div className="text-[10px] font-black text-slate-400 tracking-widest uppercase mb-2">
+                   * Click player name below to highlight
+                 </div>
+                 <div className="flex flex-wrap justify-end gap-1">
+                    {playersList.map((name) => (
+                      <button 
+                        key={name} 
+                        onClick={() => setHighlightedUser(highlightedUser === name ? null : name)}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${
+                          highlightedUser === name 
+                            ? 'bg-slate-900 text-white shadow-md' 
+                            : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                        }`}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                    {highlightedUser && (
+                      <button onClick={() => setHighlightedUser(null)} className="px-2 py-1 text-[10px] font-black text-indigo-500 hover:underline">Reset</button>
+                    )}
+                 </div>
+               </div>
+            </div>
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-white border-b-2 border-slate-100">
+                    <th className="p-4 font-black text-xs uppercase tracking-[0.2em] text-slate-400 sticky left-0 bg-white z-10 border-r border-slate-50 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)] text-center min-w-[80px]">Season</th>
+                    {Array.from({ length: playersList.length }).map((_, i) => (
+                      <th key={i} className="p-4 min-w-[120px] border-r border-slate-50 last:border-0 text-center">
+                        <span className={`font-black text-xs ${i === 0 ? 'text-yellow-500' : 'text-slate-400'}`}>
+                          {i === 0 ? <Crown size={16} className="mx-auto mb-1 fill-current" /> : `${i + 1}위`}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {seasonStats.map((stat, idx) => (
+                    <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition duration-150">
+                      <td className="p-4 font-black text-xs text-[#3d195b] sticky left-0 bg-white z-10 border-r border-slate-50 text-center shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                        {stat.season}
+                      </td>
+                      {stat.sortedPlayers.map((playerName, rankIdx) => {
+                        if (!playerName) return <td key={rankIdx} className="p-4 border-r border-slate-50"></td>;
+                        
+                        const club = getClub(playerName);
+                        const isWinner = rankIdx === 0;
+                        const score = rawData.find(d => d.season === stat.season)?.[playerName];
+                        const worldRank = rankData.find(d => d.season === stat.season)?.[playerName];
+                        const isHighlighted = highlightedUser && highlightedUser === playerName;
+                        const isDimmed = highlightedUser && highlightedUser !== playerName;
+
+                        return (
+                          <td key={rankIdx} className={`p-4 border-r border-slate-50 last:border-0 align-top transition-opacity duration-300 ${isWinner ? 'bg-yellow-50/30' : ''} ${isDimmed ? 'opacity-20 blur-[1px]' : 'opacity-100'}`}>
+                            <div className={`flex flex-col items-center gap-1.5 ${isHighlighted ? 'scale-110 transform transition-transform' : ''}`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <img src={club.logo} alt="" className="w-5 h-5 object-contain" />
+                                <span className={`text-sm font-black ${isWinner ? 'text-slate-900' : 'text-slate-600'}`}>
+                                  {playerName}
+                                </span>
+                              </div>
+                              <div className="flex flex-col items-center gap-0.5">
+                                <span className="text-[10px] font-bold text-slate-400">{score?.toLocaleString()} pts</span>
+                                <span className="text-[9px] font-bold text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded-md">#{worldRank?.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
         )}
