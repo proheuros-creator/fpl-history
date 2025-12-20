@@ -5,7 +5,7 @@ import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Loader2
 // GitHub에 업로드한 CSV 파일의 Raw URL을 여기에 입력하세요.
 // 예: "https://raw.githubusercontent.com/username/repo/main/fpl_data.csv"
 // 같은 저장소 내에 있다면 "/fpl_data.csv" 처럼 상대 경로도 가능합니다.
-const CSV_URL = "/fpl_data.csv"; 
+const CSV_URL = "https://github.com/proheuros-creator/fpl-history/raw/refs/heads/main/fpl_data.csv"; 
 
 // 클럽 정보 매핑
 const clubMapping = {
