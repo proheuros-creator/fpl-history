@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Calendar, ListOrdered, Loader2 } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Calendar, ListOrdered, Loader2, BarChart2 } from 'lucide-react';
 
 // 시즌별 승점 데이터 (2010/11 ~ 2024/25) - 최신 데이터 반영
 const rawData = [
@@ -68,7 +68,7 @@ const App = () => {
       const scores = playersList
         .map(p => ({ name: p, score: d[p] }))
         .filter(x => typeof x.score === 'number')
-        .sort((a, b) => b.score - a.score); // 점수 내림차순 정렬
+        .sort((a, b) => b.score - a.score);
       
       if (scores.length === 0) return null;
       
@@ -80,7 +80,7 @@ const App = () => {
       
       scores.forEach((s, idx) => {
         leagueRanks[s.name] = idx + 1;
-        sortedPlayers[idx] = s.name; // index 0 = 1위, 1 = 2위...
+        sortedPlayers[idx] = s.name;
       });
 
       return { 
@@ -89,7 +89,7 @@ const App = () => {
         score: winner.score, 
         worldRank: winnerRank ? `#${winnerRank.toLocaleString()}` : "N/A",
         leagueRanks,
-        sortedPlayers // [1위이름, 2위이름, 3위이름...]
+        sortedPlayers
       };
     }).filter(x => x !== null);
   }, []);
@@ -106,20 +106,27 @@ const App = () => {
       const bestRank = ranks.length > 0 ? Math.min(...ranks) : null;
       const bestRankSeason = ranks.length > 0 ? (rankData.find(d => d[name] === bestRank)?.season || '-') : '-';
       
-      return { name, wins, maxScore, maxScoreSeason, bestRank, bestRankSeason };
+      // 우승 시즌 찾기
+      const winningSeasons = seasonStats
+        .filter(s => s.winner === name)
+        .map(s => s.season)
+        .sort();
+
+      return { name, wins, maxScore, maxScoreSeason, bestRank, bestRankSeason, winningSeasons };
     }).filter(p => p.maxScore > 0).sort((a, b) => b.wins - a.wins || (a.bestRank || Infinity) - (b.bestRank || Infinity));
   }, [seasonStats]);
 
-  const mostWinsPlayer = playerHonors[0] || { name: '-', wins: 0 };
-  const bestScorePlayer = [...playerHonors].sort((a, b) => b.maxScore - a.maxScore)[0] || { name: '-', maxScore: 0, maxScoreSeason: '-' };
-  const bestRankPlayer = [...playerHonors].sort((a, b) => (a.bestRank || Infinity) - (b.bestRank || Infinity))[0] || { name: '-', bestRank: null, bestRankSeason: '-' };
+  // Top 5 계산
+  const top5Wins = useMemo(() => [...playerHonors].sort((a, b) => b.wins - a.wins).slice(0, 5), [playerHonors]);
+  const top5Scores = useMemo(() => [...playerHonors].sort((a, b) => b.maxScore - a.maxScore).slice(0, 5), [playerHonors]);
+  const top5Ranks = useMemo(() => [...playerHonors].filter(p => p.bestRank !== null).sort((a, b) => a.bestRank - b.bestRank).slice(0, 5), [playerHonors]);
 
-  // 커스텀 툴팁: 점수는 내림차순, 순위는 오름차순으로 1위가 항상 맨 위에 오도록 수정
-  const ScoreTooltip = ({ active, payload, label }) => {
+  // 커스텀 툴팁
+  const CustomTooltip = ({ active, payload, label, isRankChart }) => {
     if (active && payload && payload.length) {
       const currentSeasonStats = seasonStats.find(s => s.season === label);
-      // 점수는 값이 클수록 좋으므로 내림차순 정렬 (b - a)
-      const sortedPayload = [...payload].sort((a, b) => b.value - a.value);
+      // 순위 차트일 경우 오름차순(낮은 값 위), 점수 차트일 경우 내림차순(높은 값 위)
+      const sortedPayload = [...payload].sort((a, b) => isRankChart ? a.value - b.value : b.value - a.value);
 
       return (
         <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-slate-100 min-w-[180px]">
@@ -128,6 +135,8 @@ const App = () => {
             {sortedPayload.map((entry, index) => {
               const leagueRank = currentSeasonStats?.leagueRanks[entry.name];
               const displayVal = entry.value.toLocaleString();
+              const formattedVal = isRankChart ? `#${displayVal}` : displayVal;
+
               return (
                 <div key={index} className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
@@ -136,39 +145,7 @@ const App = () => {
                     </span>
                     <span className="text-xs font-bold text-slate-700" style={{ color: entry.stroke }}>{entry.name}</span>
                   </div>
-                  <span className="text-xs font-black text-slate-900">{displayVal}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const RankTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const currentSeasonStats = seasonStats.find(s => s.season === label);
-      // 순위는 값이 작을수록 좋으므로 오름차순 정렬 (a - b)
-      const sortedPayload = [...payload].sort((a, b) => a.value - b.value);
-
-      return (
-        <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-slate-100 min-w-[180px]">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b pb-2">{label}</p>
-          <div className="space-y-2">
-            {sortedPayload.map((entry, index) => {
-              const leagueRank = currentSeasonStats?.leagueRanks[entry.name];
-              const displayVal = entry.value.toLocaleString();
-              return (
-                <div key={index} className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full ${leagueRank === 1 ? 'bg-yellow-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                      {leagueRank}
-                    </span>
-                    <span className="text-xs font-bold text-slate-700" style={{ color: entry.stroke }}>{entry.name}</span>
-                  </div>
-                  <span className="text-xs font-black text-slate-900">#{displayVal}</span>
+                  <span className="text-xs font-black text-slate-900">{formattedVal}</span>
                 </div>
               );
             })}
@@ -219,6 +196,53 @@ const App = () => {
     );
   };
 
+  // 정보 카드 닷 (Info Card Dot)
+  const InfoCardDot = (props) => {
+    const { cx, cy, payload, dataKey, stroke } = props;
+    const isFocused = highlightedUser === null || highlightedUser === dataKey;
+    
+    if (!cx || !cy || !payload || !dataKey || !isFocused) return null;
+
+    const season = payload.season;
+    const currentSeasonStats = seasonStats.find(s => s.season === season);
+    const leagueRank = currentSeasonStats?.leagueRanks[dataKey];
+    const score = rawData.find(d => d.season === season)?.[dataKey];
+    const worldRank = rankData.find(r => r.season === season)?.[dataKey];
+
+    if (highlightedUser !== dataKey) {
+        return <circle cx={cx} cy={cy} r={2} fill={stroke} opacity={0.5} />;
+    }
+
+    const cardWidth = 90;
+    const cardHeight = 55;
+    const x = cx - cardWidth / 2;
+    const y = cy - cardHeight - 10;
+
+    return (
+      <foreignObject x={x} y={y} width={cardWidth} height={cardHeight} style={{ overflow: 'visible' }}>
+        <div className="bg-white rounded-lg shadow-lg border border-slate-200 p-2 flex flex-col items-center justify-center h-full relative z-50">
+            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-slate-200"></div>
+            <div className="flex items-center gap-1 mb-1 w-full justify-between px-1">
+                <span className={`text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full ${leagueRank === 1 ? 'bg-yellow-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                    {leagueRank}
+                </span>
+                <span className="text-[10px] font-bold text-slate-800 truncate max-w-[50px]">{dataKey}</span>
+            </div>
+            <div className="flex flex-col w-full px-1">
+                <div className="flex justify-between items-center text-[8px] text-slate-400 font-bold">
+                    <span>Pts</span>
+                    <span className="text-slate-600">{score?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center text-[8px] text-slate-400 font-bold">
+                    <span>W.R</span>
+                    <span className="text-indigo-600">#{worldRank?.toLocaleString()}</span>
+                </div>
+            </div>
+        </div>
+      </foreignObject>
+    );
+  };
+
   const renderModal = () => {
     if (!modalPlayer) return null;
     const playerRecord = rawData.map(d => {
@@ -230,11 +254,20 @@ const App = () => {
       return { season: d.season, score, leagueRank, worldRank };
     }).filter(x => x !== null);
 
+    const rankCounts = {};
+    playerRecord.forEach(rec => {
+      if (!rankCounts[rec.leagueRank]) rankCounts[rec.leagueRank] = [];
+      rankCounts[rec.leagueRank].push(rec.season);
+    });
+    
+    const winningSeasons = playerRecord.filter(r => r.leagueRank === 1).map(r => r.season);
+    const stats = playerHonors.find(p => p.name === modalPlayer.name) || {};
+
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 animate-in fade-in duration-300">
         <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setModalPlayer(null)} />
-        <div className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl relative z-10 animate-in slide-in-from-bottom-8 duration-500">
-          <div className="bg-[#3d195b] p-8 text-white flex justify-between items-start">
+        <div className="bg-white rounded-[2.5rem] w-full max-w-lg max-h-[90vh] overflow-hidden shadow-2xl relative z-10 animate-in slide-in-from-bottom-8 duration-500 flex flex-col">
+          <div className="bg-[#3d195b] p-8 text-white flex justify-between items-start shrink-0">
             <div className="flex items-center gap-5">
               <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md">
                 <img src={getClub(modalPlayer.name).logo} className="w-10 h-10 object-contain" alt="" />
@@ -248,32 +281,98 @@ const App = () => {
               <X size={24} />
             </button>
           </div>
-          <div className="p-6 max-h-[60vh] overflow-y-auto no-scrollbar">
-            <div className="space-y-3">
-              <div className="grid grid-cols-4 px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <span>Season</span>
-                <span className="text-center">Score</span>
-                <span className="text-center">League</span>
-                <span className="text-right">Global</span>
+
+          <div className="overflow-y-auto p-6 no-scrollbar">
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 flex flex-col justify-center items-center">
+                <Trophy size={20} className="mx-auto text-yellow-500 mb-2" />
+                <div className="text-xs font-bold text-slate-400 uppercase">Wins</div>
+                <div className="text-xl font-black text-slate-800 mb-1">{stats.wins}</div>
+                {winningSeasons.length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-1 mt-1">
+                    {winningSeasons.map(season => (
+                      <span key={season} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-bold text-slate-500">
+                        {season}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              {playerRecord.reverse().map((rec, i) => (
-                <div key={i} className="grid grid-cols-4 items-center bg-slate-50 hover:bg-slate-100 p-4 rounded-2xl transition group">
-                  <span className="text-xs font-black text-slate-500 group-hover:text-indigo-600 italic">{rec.season}</span>
-                  <span className="text-sm font-black text-slate-900 text-center">{rec.score.toLocaleString()}</span>
-                  <div className="flex justify-center">
-                    <span className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black ${rec.leagueRank === 1 ? 'bg-yellow-400 text-white' : 'bg-slate-200 text-slate-600'}`}>
-                      {rec.leagueRank}
+              <div className="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 flex flex-col justify-center items-center">
+                <TrendingUp size={20} className="mx-auto text-green-500 mb-2" />
+                <div className="text-xs font-bold text-slate-400 uppercase">Best Score</div>
+                <div className="text-xl font-black text-slate-800 mb-1">{stats.maxScore?.toLocaleString()}</div>
+                <span className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-bold text-slate-500">
+                  {stats.maxScoreSeason}
+                </span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 flex flex-col justify-center items-center">
+                <Globe size={20} className="mx-auto text-blue-500 mb-2" />
+                <div className="text-xs font-bold text-slate-400 uppercase">Best Rank</div>
+                <div className="text-xl font-black text-slate-800 mb-1">#{stats.bestRank?.toLocaleString()}</div>
+                <span className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-bold text-slate-500">
+                  {stats.bestRankSeason}
+                </span>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h4 className="text-sm font-black text-slate-800 mb-3 flex items-center gap-2">
+                <BarChart2 size={16} className="text-indigo-500"/> Rank Distribution
+              </h4>
+              <div className="space-y-2">
+                {Object.keys(rankCounts).sort((a, b) => Number(a) - Number(b)).map(rank => (
+                  <div key={rank} className="flex items-start text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black mr-3 shrink-0 ${rank === '1' ? 'bg-yellow-400 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                      {rank}
+                    </div>
+                    <div>
+                      <div className="font-black text-slate-900 mb-1 flex items-center">
+                        {rank === '1' ? 'Champion' : `${rank}위`}
+                        <span className="text-slate-900 font-black ml-1">: {rankCounts[rank].length}회</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {rankCounts[rank].map(season => (
+                          <span key={season} className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[9px] font-medium text-slate-500">{season}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-black text-slate-800 mb-3 flex items-center gap-2">
+                <ListOrdered size={16} className="text-indigo-500"/> Full History
+              </h4>
+              <div className="space-y-2">
+                <div className="grid grid-cols-4 px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100/50 rounded-xl">
+                  <span>Season</span>
+                  <span className="text-center">Score</span>
+                  <span className="text-center">League</span>
+                  <span className="text-right">Global</span>
+                </div>
+                {playerRecord.reverse().map((rec, i) => (
+                  <div key={i} className="grid grid-cols-4 items-center bg-white border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/30 p-3 rounded-xl transition group">
+                    <span className="text-xs font-black text-slate-500 group-hover:text-indigo-600 italic">{rec.season}</span>
+                    <span className="text-sm font-bold text-slate-700 text-center">{rec.score.toLocaleString()}</span>
+                    <div className="flex justify-center">
+                      <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-black ${rec.leagueRank === 1 ? 'bg-yellow-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        {rec.leagueRank}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 text-right group-hover:text-blue-500 transition">
+                      #{rec.worldRank?.toLocaleString() || '-'}
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 text-right group-hover:text-blue-500 transition">
-                    #{rec.worldRank?.toLocaleString() || '-'}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-          <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-center">
-             <button onClick={() => setModalPlayer(null)} className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 transition active:scale-95 shadow-lg shadow-slate-200">Close</button>
+          
+          <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-center shrink-0">
+             <button onClick={() => setModalPlayer(null)} className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 transition active:scale-95 shadow-lg shadow-slate-200 w-full">Close</button>
           </div>
         </div>
       </div>
@@ -338,17 +437,114 @@ const App = () => {
         {activeTab === 'honors' && (
           <section className="animate-in fade-in slide-in-from-bottom-6 duration-700">
             <h2 className="text-2xl font-black mb-8 flex items-center gap-3 italic text-slate-800"><Award className="text-[#3d195b] w-8 h-8" /> 명예의 전당</h2>
+            
+            {/* Top 5 Lists */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              <div className="bg-white p-8 rounded-[2rem] shadow-sm border-l-8 border-[#3d195b] flex items-center justify-between group hover:shadow-md transition">
-                <div><p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">역대 최다 우승자</p><p className="text-3xl font-black text-[#3d195b]">{mostWinsPlayer.name}</p><p className="text-sm font-bold text-slate-500 mt-1">총 {mostWinsPlayer.wins}회 챔피언</p></div><div className="bg-slate-50 p-3 rounded-2xl"><Medal className="w-10 h-10 text-[#3d195b]" /></div>
+              {/* 역대 최다 우승자 Top 5 */}
+              <div className="bg-white p-8 rounded-[2rem] shadow-sm border-l-8 border-[#3d195b]">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Most Titles</p>
+                    <h3 className="text-xl font-black text-[#3d195b]">역대 최다 우승자</h3>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-2xl"><Medal className="w-8 h-8 text-[#3d195b]" /></div>
+                </div>
+                <div className="space-y-4">
+                  {top5Wins.map((p, idx) => {
+                    const isFirst = idx === 0;
+                    return (
+                    <div key={p.name} onClick={() => setModalPlayer(p)} className={`cursor-pointer group rounded-xl p-2 transition ${isFirst ? 'bg-yellow-50/50 border border-yellow-100 py-3' : 'hover:bg-slate-50'}`}>
+                      <div className="flex justify-between items-center mb-1">
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-black w-6 h-6 flex items-center justify-center rounded-full ${isFirst ? 'bg-yellow-400 text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>
+                            {isFirst ? <Crown size={12} fill="white" /> : idx + 1}
+                          </span>
+                          <span className={`font-bold text-slate-700 group-hover:text-[#3d195b] transition ${isFirst ? 'text-lg text-slate-900' : ''}`}>{p.name}</span>
+                        </div>
+                        <span className={`font-black text-[#3d195b] ${isFirst ? 'text-2xl' : ''}`}>{p.wins}회</span>
+                      </div>
+                      <div className={`flex flex-wrap gap-1 ${isFirst ? 'pl-9' : 'pl-9'}`}>
+                        {p.winningSeasons.map(season => (
+                          <span key={season} className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[9px] text-slate-500 font-bold shadow-sm">
+                            {season}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )})}
+                </div>
               </div>
-              <div className="bg-white p-8 rounded-[2rem] shadow-sm border-l-8 border-[#00ff85] flex items-center justify-between group hover:shadow-md transition">
-                <div><p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">역대 최고 점수</p><p className="text-3xl font-black text-[#3d195b]">{bestScorePlayer.maxScore?.toLocaleString() || '0'}</p><p className="text-sm font-bold text-slate-500 mt-1">{bestScorePlayer.name} ({bestScorePlayer.maxScoreSeason})</p></div><div className="bg-slate-50 p-3 rounded-2xl"><TrendingUp className="w-10 h-10 text-[#00ff85]" /></div>
+
+              {/* 역대 최고 점수 Top 5 */}
+              <div className="bg-white p-8 rounded-[2rem] shadow-sm border-l-8 border-[#00ff85]">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Highest Score</p>
+                    <h3 className="text-xl font-black text-[#3d195b]">역대 최고 점수</h3>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-2xl"><TrendingUp className="w-8 h-8 text-[#00ff85]" /></div>
+                </div>
+                <div className="space-y-4">
+                  {top5Scores.map((p, idx) => {
+                    const isFirst = idx === 0;
+                    // 해당 시즌 우승자인지 확인
+                    const isWinnerInSeason = seasonStats.find(s => s.season === p.maxScoreSeason)?.winner === p.name;
+                    return (
+                    <div key={p.name} onClick={() => setModalPlayer(p)} className={`flex justify-between items-center cursor-pointer group rounded-xl p-2 transition ${isFirst ? 'bg-green-50/50 border border-green-100 py-3' : 'hover:bg-slate-50'}`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-sm font-black w-6 h-6 flex items-center justify-center rounded-full ${isFirst ? 'bg-green-500 text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>
+                           {isFirst ? <Crown size={12} fill="white" /> : idx + 1}
+                        </span>
+                        <div>
+                          <div className={`font-bold text-slate-700 group-hover:text-[#3d195b] transition ${isFirst ? 'text-lg text-slate-900' : ''}`}>{p.name}</div>
+                          <span className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[9px] text-slate-500 font-bold shadow-sm inline-flex items-center gap-1 mt-0.5">
+                            {p.maxScoreSeason}
+                            {isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`font-black text-[#3d195b] ${isFirst ? 'text-2xl' : ''}`}>{p.maxScore.toLocaleString()}</span>
+                    </div>
+                  )})}
+                </div>
               </div>
-              <div className="bg-white p-8 rounded-[2rem] shadow-sm border-l-8 border-[#0075ff] flex items-center justify-between group hover:shadow-md transition">
-                <div><p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">역대 최고 세계 순위</p><p className="text-3xl font-black text-[#3d195b]">{bestRankPlayer.bestRank ? `#${bestRankPlayer.bestRank.toLocaleString()}` : '-'}</p><p className="text-sm font-bold text-slate-500 mt-1">{bestRankPlayer.name} ({bestRankPlayer.bestRankSeason})</p></div><div className="bg-slate-50 p-3 rounded-2xl"><Globe className="w-10 h-10 text-[#0075ff]" /></div>
+
+              {/* 역대 최고 세계 순위 Top 5 */}
+              <div className="bg-white p-8 rounded-[2rem] shadow-sm border-l-8 border-[#0075ff]">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Best Rank</p>
+                    <h3 className="text-xl font-black text-[#3d195b]">역대 최고 세계 순위</h3>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-2xl"><Globe className="w-8 h-8 text-[#0075ff]" /></div>
+                </div>
+                <div className="space-y-4">
+                  {top5Ranks.map((p, idx) => {
+                    const isFirst = idx === 0;
+                    // 해당 시즌 우승자인지 확인
+                    const isWinnerInSeason = seasonStats.find(s => s.season === p.bestRankSeason)?.winner === p.name;
+                    return (
+                    <div key={p.name} onClick={() => setModalPlayer(p)} className={`flex justify-between items-center cursor-pointer group rounded-xl p-2 transition ${isFirst ? 'bg-blue-50/50 border border-blue-100 py-3' : 'hover:bg-slate-50'}`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-sm font-black w-6 h-6 flex items-center justify-center rounded-full ${isFirst ? 'bg-blue-500 text-white shadow-sm' : 'bg-slate-100 text-slate-500'}`}>
+                           {isFirst ? <Crown size={12} fill="white" /> : idx + 1}
+                        </span>
+                        <div>
+                          <div className={`font-bold text-slate-700 group-hover:text-[#3d195b] transition ${isFirst ? 'text-lg text-slate-900' : ''}`}>{p.name}</div>
+                          <span className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[9px] text-slate-500 font-bold shadow-sm inline-flex items-center gap-1 mt-0.5">
+                            {p.bestRankSeason}
+                            {isWinnerInSeason && <Crown size={10} fill="#FFD700" color="#B8860B" />}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`font-black text-[#3d195b] ${isFirst ? 'text-xl' : ''}`}>#{p.bestRank.toLocaleString()}</span>
+                    </div>
+                  )})}
+                </div>
               </div>
             </div>
+
+            {/* 전체 플레이어 카드 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {playerHonors.map((player, idx) => (
                 <div key={player.name} onClick={() => setModalPlayer(player)} className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative overflow-hidden group hover:border-[#00ff85] transition-all cursor-pointer hover:translate-y-[-4px] hover:shadow-xl">
@@ -377,7 +573,7 @@ const App = () => {
                 <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><Award size={16} className="text-indigo-500" /> 1. 시즌 승점 추이 (Score Trend - Log Scale)</h3>
                 <div className="h-[400px] w-full"><ResponsiveContainer width="100%" height="100%">
                     <LineChart data={rawData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis scale="log" domain={['dataMin - 100', 'dataMax + 100']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<ScoreTooltip />} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis scale="log" domain={['dataMin - 100', 'dataMax + 100']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<CustomTooltip />} />
                       {playersList.map((name) => (<Line key={name} type="monotone" dataKey={name} stroke={getClub(name).color} strokeWidth={highlightedUser === null || highlightedUser === name ? 5 : 1.5} strokeOpacity={highlightedUser === null || highlightedUser === name ? 1 : 0.08} dot={<ScoreCustomDot />} activeDot={{ r: 8, strokeWidth: 0 }} connectNulls animationDuration={1500} />))}
                     </LineChart>
                   </ResponsiveContainer></div>
@@ -386,7 +582,7 @@ const App = () => {
                 <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><Globe size={16} className="text-blue-500" /> 2. 세계 순위 추이 (World Rank Trend - Log Scale)</h3>
                 <div className="h-[400px] w-full"><ResponsiveContainer width="100%" height="100%">
                     <LineChart data={rankData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis reversed scale="log" domain={['dataMin', 'dataMax']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<RankTooltip />} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" /><XAxis dataKey="season" fontSize={10} fontWeight="900" tickMargin={15} stroke="#cbd5e1" /><YAxis reversed scale="log" domain={['dataMin', 'dataMax']} fontSize={10} fontWeight="900" stroke="#cbd5e1" /><Tooltip content={<CustomTooltip isRankChart={true} />} />
                       {playersList.map((name) => (<Line key={name} type="monotone" dataKey={name} stroke={getClub(name).color} strokeWidth={highlightedUser === null || highlightedUser === name ? 5 : 1.5} strokeOpacity={highlightedUser === null || highlightedUser === name ? 1 : 0.08} dot={<RankCustomDot />} activeDot={{ r: 8, strokeWidth: 0 }} connectNulls animationDuration={1500} />))}
                     </LineChart>
                   </ResponsiveContainer></div>
@@ -399,7 +595,7 @@ const App = () => {
           </section>
         )}
 
-        {/* 리그 순위 변화 (NEW: Table) */}
+        {/* 리그 순위 변화 (NEW: Table View) */}
         {activeTab === 'rankTrend' && (
           <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-700">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
@@ -434,51 +630,58 @@ const App = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-100">
-                    <th className="p-4 font-black text-xs uppercase tracking-[0.2em] text-slate-400 sticky left-0 bg-white z-10 border-r border-slate-50 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)] text-center min-w-[80px]">Season</th>
-                    {Array.from({ length: playersList.length }).map((_, i) => (
-                      <th key={i} className="p-4 min-w-[120px] border-r border-slate-50 last:border-0 text-center">
-                        <span className={`font-black text-xs ${i === 0 ? 'text-yellow-500' : 'text-slate-400'}`}>
-                          {i === 0 ? <Crown size={16} className="mx-auto mb-1 fill-current" /> : `${i + 1}위`}
-                        </span>
+                    <th className="p-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 sticky left-0 bg-white z-10 border-r border-slate-50 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)] text-center min-w-[80px]">Rank</th>
+                    {seasonStats.map(stat => (
+                      <th key={stat.season} className="p-6 min-w-[140px] border-r border-slate-50 last:border-0 text-center">
+                        <span className="font-black text-xs text-slate-700">{stat.season}</span>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {seasonStats.map((stat, idx) => (
-                    <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition duration-150">
-                      <td className="p-4 font-black text-xs text-[#3d195b] sticky left-0 bg-white z-10 border-r border-slate-50 text-center shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
-                        {stat.season}
-                      </td>
-                      {stat.sortedPlayers.map((playerName, rankIdx) => {
-                        if (!playerName) return <td key={rankIdx} className="p-4 border-r border-slate-50"></td>;
-                        
-                        const club = getClub(playerName);
-                        const isWinner = rankIdx === 0;
-                        const score = rawData.find(d => d.season === stat.season)?.[playerName];
-                        const worldRank = rankData.find(d => d.season === stat.season)?.[playerName];
-                        const isHighlighted = highlightedUser && highlightedUser === playerName;
-                        const isDimmed = highlightedUser && highlightedUser !== playerName;
+                  {/* 최대 참가자 수만큼 행(Rank) 생성 (1위 ~ 13위) */}
+                  {Array.from({ length: playersList.length }).map((_, rankIndex) => {
+                    const rank = rankIndex + 1;
+                    return (
+                      <tr key={rank} className="border-b border-slate-50 hover:bg-slate-50/50 transition duration-150">
+                        <td className="p-4 font-black text-sm text-slate-400 sticky left-0 bg-white z-10 border-r border-slate-50 text-center shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                          {rank === 1 ? <Crown size={16} className="text-yellow-400 mx-auto fill-current" /> : rank}
+                        </td>
+                        {seasonStats.map(stat => {
+                          // 해당 시즌의 해당 순위(rank)인 플레이어 찾기
+                          const playerName = stat.sortedPlayers[rankIndex]; // 0-based index
+                          
+                          if (!playerName) {
+                            return <td key={stat.season} className="p-4 border-r border-slate-50 last:border-0"></td>;
+                          }
 
-                        return (
-                          <td key={rankIdx} className={`p-4 border-r border-slate-50 last:border-0 align-top transition-opacity duration-300 ${isWinner ? 'bg-yellow-50/30' : ''} ${isDimmed ? 'opacity-20 blur-[1px]' : 'opacity-100'}`}>
-                            <div className={`flex flex-col items-center gap-1.5 ${isHighlighted ? 'scale-110 transform transition-transform' : ''}`}>
-                              <div className="flex items-center gap-2 mb-1">
-                                <img src={club.logo} alt="" className="w-5 h-5 object-contain" />
-                                <span className={`text-sm font-black ${isWinner ? 'text-slate-900' : 'text-slate-600'}`}>
-                                  {playerName}
-                                </span>
+                          const club = getClub(playerName);
+                          const isWinner = rank === 1;
+                          const score = rawData.find(d => d.season === stat.season)?.[playerName];
+                          const worldRank = rankData.find(d => d.season === stat.season)?.[playerName];
+                          const isHighlighted = highlightedUser && highlightedUser === playerName;
+                          const isDimmed = highlightedUser && highlightedUser !== playerName;
+
+                          return (
+                            <td key={stat.season} className={`p-4 border-r border-slate-50 last:border-0 align-top transition-opacity duration-300 ${isWinner ? 'bg-yellow-50/30' : ''} ${isDimmed ? 'opacity-20 blur-[1px]' : 'opacity-100'}`}>
+                              <div className={`flex flex-col items-center gap-1.5 ${isHighlighted ? 'scale-110 transform transition-transform' : ''}`}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <img src={club.logo} alt="" className="w-5 h-5 object-contain" />
+                                  <span className={`text-sm font-black ${isWinner ? 'text-slate-900' : 'text-slate-600'}`}>
+                                    {playerName}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <span className="text-[10px] font-bold text-slate-400">{score?.toLocaleString()} pts</span>
+                                  <span className="text-[9px] font-bold text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded-md">#{worldRank?.toLocaleString()}</span>
+                                </div>
                               </div>
-                              <div className="flex flex-col items-center gap-0.5">
-                                <span className="text-[10px] font-bold text-slate-400">{score?.toLocaleString()} pts</span>
-                                <span className="text-[9px] font-bold text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded-md">#{worldRank?.toLocaleString()}</span>
-                              </div>
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
