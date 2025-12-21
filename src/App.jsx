@@ -7,11 +7,9 @@ import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Calenda
 // ==========================================
 
 // 캐시 방지를 위해 타임스탬프 쿼리 추가
-//const timestamp = new Date().getTime();
-//const POINTS_CSV_URL = `https://raw.githubusercontent.com/proheuros-creator/fpl-history/main/rawdata/Baekdoo_FPL_Points_History.csv?t=${timestamp}`;
-//const RANK_CSV_URL = `https://raw.githubusercontent.com/proheuros-creator/fpl-history/main/rawdata/Baekdoo_FPL_Rank_History.csv?t=${timestamp}`;
-const POINTS_CSV_URL = `https://raw.githubusercontent.com/proheuros-creator/fpl-history/main/rawdata/Baekdoo_FPL_Points_History.csv`;
-const RANK_CSV_URL = `https://raw.githubusercontent.com/proheuros-creator/fpl-history/main/rawdata/Baekdoo_FPL_Rank_History.csv`;
+const timestamp = new Date().getTime();
+const POINTS_CSV_URL = `https://raw.githubusercontent.com/proheuros-creator/fpl-history/main/rawdata/Baekdoo_FPL_Points_History.csv?t=${timestamp}`;
+const RANK_CSV_URL = `https://raw.githubusercontent.com/proheuros-creator/fpl-history/main/rawdata/Baekdoo_FPL_Rank_History.csv?t=${timestamp}`;
 
 // FPL 역대 시즌별 Top 5 득점자 데이터 (FPL Global Top 5 Scorers) - 요약용
 const fplTopScorers = {
