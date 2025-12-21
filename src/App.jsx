@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Calendar, ListOrdered, Loader2, BarChart2, ChevronDown, ChevronUp, Activity, Shield, Shirt, Percent } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Award, Star, Globe, Medal, Crown, X, Calendar, ListOrdered, Loader2, BarChart2, ChevronDown, ChevronUp, Activity, Shield, Shirt, Percent, Filter } from 'lucide-react';
 
 // ==========================================
-// 1. 데이터 소스 (하드코딩된 데이터)
+// 1. 데이터 소스 (검증된 데이터)
 // ==========================================
 
 // 참가자 목록
@@ -167,6 +167,41 @@ const fplSeasonTop20 = {
     ]
 };
 
+const plTeamLogos = {
+  "ARS": "https://resources.premierleague.com/premierleague/badges/50/t3.png",
+  "AVL": "https://resources.premierleague.com/premierleague/badges/50/t7.png",
+  "BOU": "https://resources.premierleague.com/premierleague/badges/50/t91.png",
+  "BRE": "https://resources.premierleague.com/premierleague/badges/50/t94.png",
+  "BHA": "https://resources.premierleague.com/premierleague/badges/50/t36.png",
+  "BUR": "https://resources.premierleague.com/premierleague/badges/50/t90.png",
+  "CHE": "https://resources.premierleague.com/premierleague/badges/50/t8.png",
+  "CRY": "https://resources.premierleague.com/premierleague/badges/50/t31.png",
+  "EVE": "https://resources.premierleague.com/premierleague/badges/50/t11.png",
+  "FUL": "https://resources.premierleague.com/premierleague/badges/50/t54.png",
+  "LEE": "https://resources.premierleague.com/premierleague/badges/50/t2.png",
+  "LEI": "https://resources.premierleague.com/premierleague/badges/50/t13.png",
+  "LIV": "https://resources.premierleague.com/premierleague/badges/50/t14.png",
+  "MCI": "https://resources.premierleague.com/premierleague/badges/50/t43.png",
+  "MUN": "https://resources.premierleague.com/premierleague/badges/50/t1.png",
+  "NEW": "https://resources.premierleague.com/premierleague/badges/50/t4.png",
+  "NFO": "https://resources.premierleague.com/premierleague/badges/50/t17.png",
+  "SHU": "https://resources.premierleague.com/premierleague/badges/50/t49.png",
+  "SOU": "https://resources.premierleague.com/premierleague/badges/50/t20.png",
+  "TOT": "https://resources.premierleague.com/premierleague/badges/50/t6.png",
+  "WAT": "https://resources.premierleague.com/premierleague/badges/50/t57.png",
+  "WBA": "https://resources.premierleague.com/premierleague/badges/50/t35.png",
+  "WHU": "https://resources.premierleague.com/premierleague/badges/50/t21.png",
+  "WOL": "https://resources.premierleague.com/premierleague/badges/50/t39.png",
+  "QPR": "https://resources.premierleague.com/premierleague/badges/50/t52.png",
+  "SWA": "https://resources.premierleague.com/premierleague/badges/50/t80.png",
+  "STK": "https://resources.premierleague.com/premierleague/badges/50/t110.png",
+  "BLP": "https://resources.premierleague.com/premierleague/badges/50/t55.png"
+};
+
+const getPLTeamLogo = (teamCode) => {
+    return plTeamLogos[teamCode] || "https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg";
+};
+
 // 포지션별 색상 및 아이콘
 const getPositionStyle = (pos) => {
     switch (pos) {
@@ -272,6 +307,7 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('winners');
   const [trendHighlightedUsers, setTrendHighlightedUsers] = useState([]); // 트렌드 탭용 하이라이트
   const [rankHighlightedUsers, setRankHighlightedUsers] = useState([]);   // 리그 순위 탭용 하이라이트
+  const [dataVisibleColumns, setDataVisibleColumns] = useState([...PLAYERS, 'Total Players']); // 전체 데이터 탭용 열 필터
   const [modalPlayer, setModalPlayer] = useState(null);
   const [expandedSections, setExpandedSections] = useState([]); 
   const [selectedSeasonPlayer, setSelectedSeasonPlayer] = useState(null);
@@ -311,6 +347,37 @@ const App = () => {
 
   const toggleTrendHighlightUser = (name) => setTrendHighlightedUsers(prev => prev.includes(name) ? prev.filter(u => u !== name) : [...prev, name]);
   const toggleRankHighlightUser = (name) => setRankHighlightedUsers(prev => prev.includes(name) ? prev.filter(u => u !== name) : [...prev, name]);
+  
+  // 전체 데이터 탭용 컬럼 선택 로직 수정 (요청 반영)
+  const toggleDataVisibleColumn = (name) => {
+      // 현재 모든 플레이어가 선택되어 있는지 확인 (Total Players 제외)
+      const allPlayersVisible = playersList.every(p => dataVisibleColumns.includes(p));
+
+      if (allPlayersVisible) {
+          // 모든 플레이어가 보일 때 한 명을 클릭하면 -> 그 사람만 남기고 나머지 플레이어 숨김 (Isolate)
+          // Total Players 열이 켜져있었다면 유지
+          const isTotalVisible = dataVisibleColumns.includes('Total Players');
+          const newCols = [name];
+          if(isTotalVisible) newCols.push('Total Players');
+          setDataVisibleColumns(newCols);
+      } else {
+          // 일부만 보일 때 -> 토글 동작 (추가/제거)
+          setDataVisibleColumns(prev => {
+              if (prev.includes(name)) {
+                  // 제거
+                  return prev.filter(c => c !== name);
+              } else {
+                  // 추가
+                  return [...prev, name];
+              }
+          });
+      }
+  };
+
+  // 전체 데이터 탭 리셋 함수
+  const resetDataVisibleColumns = () => {
+      setDataVisibleColumns([...PLAYERS, 'Total Players']);
+  };
 
   const seasonStats = useMemo(() => {
     if (rawData.length === 0 || rankData.length === 0) return [];
@@ -524,24 +591,30 @@ const App = () => {
                     <div className="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 flex flex-col justify-center items-center"> 
                         <Trophy size={20} className="mx-auto text-yellow-500 mb-2" /> 
                         <div className="text-xs font-bold text-slate-400 uppercase">Wins</div> 
-                        <div className="text-xl font-black text-slate-800 mb-1">{stats.wins}</div> 
+                        <div className="text-xl font-black text-slate-800 mb-1">{stats.wins}</div>
+                         <div className="flex flex-wrap gap-1 justify-center mt-1">
+                            {stats.winningSeasons.map(s => <span key={s} className="bg-white border rounded px-1.5 py-0.5 text-[9px] text-slate-400 font-bold">{s}</span>)}
+                        </div> 
                     </div> 
                     <div className="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 flex flex-col justify-center items-center"> 
                         <TrendingUp size={20} className="mx-auto text-pink-500 mb-2" /> 
                         <div className="text-xs font-bold text-slate-400 uppercase">Highest Points</div> 
                         <div className="text-xl font-black text-slate-800 mb-1">{stats.maxScore.toLocaleString()}</div> 
+                        <div className="bg-white border rounded px-1.5 py-0.5 text-[9px] text-slate-400 font-bold mt-1">{stats.maxScoreSeason}</div>
                     </div> 
                     <div className="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 flex flex-col justify-center items-center"> 
                         <Globe size={20} className="mx-auto text-blue-500 mb-2" /> 
                         <div className="text-xs font-bold text-slate-400 uppercase">Best Rank</div> 
-                        <div className="text-xl font-black text-slate-800 mb-0">#{stats.bestRank?.toLocaleString()}</div>
+                        <div className="text-2xl font-black text-slate-800 mb-0">#{stats.bestRank?.toLocaleString()}</div>
                         <div className="text-[10px] font-bold text-slate-400 mt-1">Top {stats.bestPercentile?.toFixed(2)}%</div>
+                        <div className="bg-white border rounded px-1.5 py-0.5 text-[9px] text-slate-400 font-bold mt-1">{stats.bestRankSeason}</div>
                     </div> 
                     <div className="bg-slate-50 p-4 rounded-2xl text-center border border-slate-100 flex flex-col justify-center items-center"> 
                         <Percent size={20} className="mx-auto text-emerald-500 mb-2" /> 
                         <div className="text-xs font-bold text-slate-400 uppercase">Best Top %</div> 
                         <div className="text-xl font-black text-emerald-600 mb-0">Top {stats.bestPercentile?.toFixed(2)}%</div> 
                         <div className="text-[10px] font-bold text-slate-400 mt-1">#{stats.bestRank?.toLocaleString()}</div>
+                        <div className="bg-white border rounded px-1.5 py-0.5 text-[9px] text-slate-400 font-bold mt-1">{stats.bestPercentileSeason}</div>
                     </div> 
                 </div> 
                 
@@ -728,7 +801,7 @@ const App = () => {
                           </div>
                           <div className="text-right flex flex-col items-end">
                               <span className="font-black text-xs" style={{ color: pStyle.color }}>Top {p.percentile?.toFixed(2)}%</span>
-                              <span className="text-[8px] font-bold text-slate-300">#{p.rank.toLocaleString()}</span>
+                              <span className="text-[10px] font-bold text-slate-700">#{p.rank.toLocaleString()}</span>
                           </div>
                         </div>
                       )})}
@@ -761,6 +834,20 @@ const App = () => {
         {activeTab === 'trend' && (
           <section className="animate-in fade-in duration-700 space-y-12">
             
+             {/* 범례 및 컨트롤러 (트렌드 탭용) - Moved to top */}
+             <div className="flex flex-wrap justify-center gap-3 mb-8">
+                {playersList.map((name) => {
+                    const club = getClub(name);
+                    return (
+                        <button key={name} onClick={() => toggleTrendHighlightUser(name)} className={`px-4 py-2 rounded-2xl flex items-center gap-2 transition-all border ${trendHighlightedUsers.includes(name) ? 'bg-slate-900 text-white shadow-xl scale-110 z-10 border-slate-900' : 'bg-white text-slate-500 border-slate-200'}`}>
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: club.color }} />
+                            <img src={club.logo} alt="" className="w-4 h-4 object-contain" />
+                            <span className="text-xs font-bold">{name}</span>
+                        </button>
+                    )
+                })}
+              </div>
+
             {/* 1. 시즌 점수 추이 */}
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
               <div className="mb-8">
@@ -800,7 +887,7 @@ const App = () => {
             {/* 3. 세계 백분위 추이 (Percentile Trend) */}
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
               <div className="mb-8">
-                <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><Percent size={16} className="text-emerald-500" /> 3. 세계 백분위 추이 (Top % Trend - Log Scale)</h3>
+                <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><Percent size={16} className="text-emerald-500" /> 3. 세계 백분위 추이 (Top % Trend)</h3>
                 <div className="h-[400px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={allTimeRecords.reduce((acc, curr) => {
@@ -811,7 +898,8 @@ const App = () => {
                         }, [])} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="season" fontSize={10} fontWeight="900" stroke="#cbd5e1" />
-                          <YAxis scale="log" domain={['auto', 'auto']} fontSize={10} fontWeight="900" stroke="#cbd5e1" reversed={true} />
+                          {/* Log Scale removed as requested */}
+                          <YAxis domain={[0, 100]} fontSize={10} fontWeight="900" stroke="#cbd5e1" reversed={true} />
                           <Tooltip content={<CustomTooltip type="percentile" />} />
                           {playersList.map((name) => (<Line key={name} type="monotone" dataKey={name} stroke={getClub(name).color} strokeWidth={trendHighlightedUsers.includes(name) ? 4 : (trendHighlightedUsers.length > 0 ? 0.2 : 1.5)} dot={<ChartCustomDot />} connectNulls />))}
                         </LineChart>
@@ -819,20 +907,30 @@ const App = () => {
                 </div>
               </div>
             </div>
-
-             {/* 범례 및 컨트롤러 (트렌드 탭용) */}
-             <div className="flex flex-wrap justify-center gap-3 mt-8">
-                {playersList.map((name) => {
-                    const club = getClub(name);
-                    return (
-                        <button key={name} onClick={() => toggleTrendHighlightUser(name)} className={`px-4 py-2 rounded-2xl flex items-center gap-2 transition-all border ${trendHighlightedUsers.includes(name) ? 'bg-slate-900 text-white shadow-xl scale-110 z-10 border-slate-900' : 'bg-white text-slate-500 border-slate-200'}`}>
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: club.color }} />
-                            <img src={club.logo} alt="" className="w-4 h-4 object-contain" />
-                            <span className="text-xs font-bold">{name}</span>
-                        </button>
-                    )
-                })}
+            
+            {/* 4. 세계 백분위 추이 (Top 10%) - New Chart */}
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+              <div className="mb-8">
+                <h3 className="text-sm font-black text-slate-400 mb-6 uppercase tracking-widest flex items-center gap-2"><TrendingUp size={16} className="text-purple-500" /> 4. 세계 백분위 추이 (Top 10% High Performance)</h3>
+                <div className="h-[400px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={allTimeRecords.reduce((acc, curr) => {
+                            const existing = acc.find(item => item.season === curr.season) || { season: curr.season };
+                            // Only include if percentile is <= 10
+                            existing[curr.name] = curr.percentile <= 10 ? curr.percentile : null;
+                            if(!acc.find(item => item.season === curr.season)) acc.push(existing);
+                            return acc;
+                        }, [])} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="season" fontSize={10} fontWeight="900" stroke="#cbd5e1" />
+                          <YAxis domain={[0, 10]} fontSize={10} fontWeight="900" stroke="#cbd5e1" reversed={true} />
+                          <Tooltip content={<CustomTooltip type="percentile" />} />
+                          {playersList.map((name) => (<Line key={name} type="monotone" dataKey={name} stroke={getClub(name).color} strokeWidth={trendHighlightedUsers.includes(name) ? 4 : (trendHighlightedUsers.length > 0 ? 0.2 : 1.5)} dot={<ChartCustomDot />} connectNulls />))}
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
               </div>
+            </div>
           </section>
         )}
 
@@ -844,7 +942,7 @@ const App = () => {
                </h2>
                
                {/* 참여자 필터 버튼 (리그 순위 탭용) */}
-               <div className="flex flex-wrap gap-2 justify-center md:justify-end">
+               <div className="flex flex-wrap gap-2 justify-center md:justify-end max-w-[650px]">
                     {playersList.map((name) => {
                         const club = getClub(name);
                         return (
@@ -868,17 +966,21 @@ const App = () => {
                     {seasonStats.map(stat => {
                       // FPL Global 1위 선수 가져오기
                       const globalTopPlayer = fplSeasonTop20[stat.season]?.[0];
+                      const totalPlayers = rankData.find(d => d.season === stat.season)?.total_players;
 
                       return (
                       <th key={stat.season} className="p-6 min-w-[140px] border-r border-slate-50 last:border-0 text-center relative group">
                         <div className="flex flex-col items-center">
                            <span className="font-black text-xs text-slate-700 mb-1">{stat.season}</span>
                            {globalTopPlayer && (
-                               <div className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded mt-1 border border-amber-100 flex flex-col items-center cursor-pointer hover:bg-amber-100 transition" onClick={() => setSelectedSeasonPlayer(selectedSeasonPlayer === stat.season ? null : stat.season)}>
+                               <div className="text-[9px] font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded mt-1 border border-amber-200 flex flex-col items-center cursor-pointer hover:bg-amber-200 transition shadow-sm" onClick={() => setSelectedSeasonPlayer(selectedSeasonPlayer === stat.season ? null : stat.season)}>
                                    <div className="flex items-center gap-1"><Crown size={8} className="fill-current"/> <span>{globalTopPlayer.name}</span></div>
                                    <span className="text-[8px] font-normal opacity-75">{globalTopPlayer.points} pts</span>
                                </div>
                            )}
+                           <div className="text-[9px] font-black text-white mt-2 flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-md shadow-sm border border-slate-900">
+                               <Users size={10}/> {totalPlayers?.toLocaleString()}
+                           </div>
                            {/* Global Top 5 표시 (선택 시) */}
                            {selectedSeasonPlayer === stat.season && (
                                <div className="absolute top-full left-0 w-full bg-white shadow-xl rounded-xl z-50 border border-indigo-100 p-2 text-left animate-in fade-in zoom-in-95 duration-200">
@@ -972,7 +1074,7 @@ const App = () => {
                           <tr className="bg-white border-b-2 border-slate-100">
                               <th className="p-4 font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 sticky left-0 bg-white z-10 border-r border-slate-50 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)] text-center min-w-[60px]">Rank</th>
                               {Object.keys(fplSeasonTop20).map(season => (
-                                  <th key={season} className="p-4 min-w-[140px] border-r border-slate-50 last:border-0 text-center font-black text-xs text-[#3d195b] italic">{season}</th>
+                                  <th key={season} className="p-4 min-w-[160px] border-r border-slate-50 last:border-0 text-center font-black text-xs text-[#3d195b] italic">{season}</th>
                               ))}
                           </tr>
                       </thead>
@@ -986,15 +1088,21 @@ const App = () => {
                                       const player = fplSeasonTop20[season][i];
                                       if (!player) return <td key={season} className="border-r border-slate-50"></td>;
                                       const posStyle = getPositionStyle(player.pos);
+                                      const teamLogo = getPLTeamLogo(player.team);
                                       return (
-                                          <td key={season} className="p-3 border-r border-slate-50 text-center">
-                                              <div className={`inline-flex flex-col items-center justify-center p-2 rounded-xl w-full h-full transition ${i===0 ? 'bg-yellow-50 border border-yellow-200' : ''}`}>
-                                                  <div className="flex items-center gap-1.5 mb-1">
-                                                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${posStyle.bg} ${posStyle.text} border ${posStyle.border}`}>{player.pos}</span>
-                                                      <span className="text-[9px] font-black text-slate-400 uppercase">{player.team}</span>
+                                          <td key={season} className="p-3 border-r border-slate-50">
+                                              <div className={`flex items-center gap-3 p-3 rounded-xl w-full h-full transition hover:bg-slate-50 ${i===0 ? 'bg-yellow-50 border border-yellow-200' : ''}`}>
+                                                  <div className="w-12 h-12 flex items-center justify-center shrink-0">
+                                                      <img src={teamLogo} alt={player.team} className="w-full h-full object-contain" />
                                                   </div>
-                                                  <span className="text-xs font-bold text-slate-800 leading-tight mb-0.5">{player.name}</span>
-                                                  <span className="text-[10px] font-black text-[#3d195b]">{player.points} pts</span>
+                                                  <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                                      <div className="flex items-center gap-1.5 w-full">
+                                                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${posStyle.bg} ${posStyle.text} border ${posStyle.border}`}>{player.pos}</span>
+                                                          <span className="text-[9px] font-black text-slate-400 uppercase">{player.team}</span>
+                                                      </div>
+                                                      <span className="text-sm font-black text-slate-800 leading-none truncate">{player.name}</span>
+                                                      <span className="text-xs font-black text-[#3d195b]">{player.points} pts</span>
+                                                  </div>
                                               </div>
                                           </td>
                                       );
@@ -1009,10 +1117,37 @@ const App = () => {
 
         {activeTab === 'data' && (
           <section className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-700">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-                <div>
-                    <h2 className="font-black italic flex items-center gap-3 text-[#3d195b] text-xl"><Users size={22}/> 통합 성적 아카이브</h2>
-                    <p className="text-[10px] font-black text-slate-400 mt-1 uppercase tracking-widest">* 배경색은 해당 시즌 세계 순위 백분위(Percentile)를 의미합니다 (초록: 상위, 빨강: 하위).</p>
+            <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 bg-slate-50/50">
+                <div className="flex items-center gap-4">
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 text-[#3d195b]">
+                        <Users size={24}/>
+                    </div>
+                    <div className="flex flex-col">
+                        <h2 className="font-black italic text-[#3d195b] text-xl">통합 성적 아카이브</h2>
+                    </div>
+                </div>
+                
+                {/* 데이터 컬럼 필터 (전체 데이터 탭용) */}
+               <div className="flex flex-wrap gap-2 justify-center md:justify-end max-w-[650px]">
+                    {playersList.map((name) => {
+                        const club = getClub(name);
+                        const isVisible = dataVisibleColumns.includes(name);
+                        return (
+                            <button key={name} onClick={() => toggleDataVisibleColumn(name)} className={`px-3 py-1.5 rounded-xl flex items-center gap-2 transition-all border text-[10px] font-bold ${isVisible ? 'bg-indigo-600 text-white shadow-md border-indigo-600' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}>
+                                <img src={club.logo} alt="" className="w-3 h-3 object-contain" style={{ filter: isVisible ? 'none' : 'grayscale(100%) opacity(50%)' }} />
+                                <span>{name}</span>
+                            </button>
+                        )
+                    })}
+                    <button onClick={() => toggleDataVisibleColumn('Total Players')} className={`px-3 py-1.5 rounded-xl flex items-center gap-2 transition-all border text-[10px] font-bold ${dataVisibleColumns.includes('Total Players') ? 'bg-slate-700 text-white shadow-md border-slate-700' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'}`}>
+                        <Users size={12} />
+                        <span>Total Players</span>
+                    </button>
+                    {dataVisibleColumns.length < playersList.length + 1 && (
+                         <button onClick={resetDataVisibleColumns} className="px-3 py-1.5 rounded-xl text-[10px] font-bold bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">
+                            Show All
+                        </button>
+                    )}
                 </div>
             </div>
             <div className="overflow-x-auto no-scrollbar" ref={dataScrollRef}>
@@ -1020,7 +1155,12 @@ const App = () => {
                 <thead>
                   <tr className="bg-white border-b-2 border-slate-100">
                     <th className="p-6 font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 sticky left-0 bg-white z-10 border-r border-slate-50 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">시즌</th>
-                    {playersList.map(p => (<th key={p} className="p-6 min-w-[160px] border-r border-slate-50 last:border-0 group"><div className="flex items-center gap-3"><img src={getClub(p).logo} alt="" className="w-6 h-6 object-contain" onError={(e) => e.currentTarget.src = clubMapping.default.logo} /><span className="font-black text-[11px] text-slate-700">{p}</span></div></th>))}
+                    {playersList.filter(p => dataVisibleColumns.includes(p)).map(p => (<th key={p} className="p-6 min-w-[160px] border-r border-slate-50 last:border-0 group"><div className="flex items-center gap-3"><img src={getClub(p).logo} alt="" className="w-6 h-6 object-contain" onError={(e) => e.currentTarget.src = clubMapping.default.logo} /><span className="font-black text-[11px] text-slate-700">{p}</span></div></th>))}
+                    {dataVisibleColumns.includes('Total Players') && (
+                        <th className="p-6 min-w-[120px] border-r border-slate-50 last:border-0 group">
+                            <div className="flex items-center gap-2 text-slate-500"><Users size={14} /><span className="font-black text-[11px]">Total Players</span></div>
+                        </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -1035,10 +1175,9 @@ const App = () => {
                         <td className="p-6 sticky left-0 bg-white z-10 border-r border-slate-50 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
                             <div className="flex flex-col">
                                 <span className="font-black text-xs text-[#3d195b] italic">{row.season}</span>
-                                <span className="text-[8px] font-bold text-slate-400 flex items-center gap-1 mt-1 uppercase tracking-tighter"><Users size={8}/> {totalPlayers?.toLocaleString()}</span>
                             </div>
                         </td>
-                        {playersList.map(p => {
+                        {playersList.filter(p => dataVisibleColumns.includes(p)).map(p => {
                           const score = row[p];
                           const leagueRank = currentSeasonStats?.leagueRanks[p];
                           
@@ -1066,6 +1205,11 @@ const App = () => {
                             </td>
                           );
                         })}
+                        {dataVisibleColumns.includes('Total Players') && (
+                            <td className="p-6 border-r border-slate-50 last:border-0">
+                                <span className="font-bold text-xs text-slate-600">{totalPlayers?.toLocaleString()}</span>
+                            </td>
+                        )}
                       </tr>
                     );
                   })}
