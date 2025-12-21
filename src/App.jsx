@@ -835,18 +835,25 @@ const App = () => {
           <section className="animate-in fade-in duration-700 space-y-12">
             
              {/* 범례 및 컨트롤러 (트렌드 탭용) - Moved to top */}
-             <div className="flex flex-wrap justify-center gap-3 mb-8">
-                {playersList.map((name) => {
-                    const club = getClub(name);
-                    return (
-                        <button key={name} onClick={() => toggleTrendHighlightUser(name)} className={`px-4 py-2 rounded-2xl flex items-center gap-2 transition-all border ${trendHighlightedUsers.includes(name) ? 'bg-slate-900 text-white shadow-xl scale-110 z-10 border-slate-900' : 'bg-white text-slate-500 border-slate-200'}`}>
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: club.color }} />
-                            <img src={club.logo} alt="" className="w-4 h-4 object-contain" />
-                            <span className="text-xs font-bold">{name}</span>
-                        </button>
-                    )
-                })}
-              </div>
+             <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden mb-8">
+                <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/50">
+                    <h2 className="font-black italic flex items-center gap-3 text-[#3d195b] text-xl">
+                        <TrendingUp size={22}/> 트렌드 분석 (Trend Analysis)
+                    </h2>
+                    <div className="flex flex-wrap gap-2 justify-center md:justify-end max-w-[650px]">
+                        {playersList.map((name) => {
+                            const club = getClub(name);
+                            return (
+                                <button key={name} onClick={() => toggleTrendHighlightUser(name)} className={`px-4 py-2 rounded-2xl flex items-center gap-2 transition-all border ${trendHighlightedUsers.includes(name) ? 'bg-slate-900 text-white shadow-xl scale-110 z-10 border-slate-900' : 'bg-white text-slate-500 border-slate-200'}`}>
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: club.color }} />
+                                    <img src={club.logo} alt="" className="w-4 h-4 object-contain" />
+                                    <span className="text-xs font-bold">{name}</span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+             </div>
 
             {/* 1. 시즌 점수 추이 */}
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
